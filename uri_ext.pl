@@ -39,6 +39,10 @@ domain_uris(Links, RootLinks):-
     convlist([Uri, RootUri]>>domain_uri(Uri, RootUri), Links, RootUris),
     setof(X, member(X,RootUris), RootLinks).    
 
+same_domain(Uri1, Uri2):-
+    domain_uri(Uri1, RootUri),
+    domain_uri(Uri2, RootUri).
+
 is_internal_link(Domain, Link):-
     uri_components(Link,  uri_components(_Schema, Domain, _, _, _)).
 

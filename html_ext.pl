@@ -51,13 +51,12 @@ extract_link(DOM, Url, Link):-
     uri_normalized(HREF0, Url, LinkWithFragment),
     uri_without_fragment(LinkWithFragment, Link).
 
+extract_all_links(DOM, Url, Links):-
+    setof(Link, extract_link(DOM, Url, Link), Links).
 
 safe_extract_all_links(DOM, Url, Links):-
     catch(extract_all_links(DOM, Url, Links),
 	  ExTerm, (format("Exception: ~q\n",[ExTerm]), Links is [])).
-
-extract_all_links(DOM, Url, Links):-
-    setof(Link, extract_link(DOM, Url, Link), Links).
 
 safe_extract_title(DOM, Title):-
     xpath(DOM, //head/title(text), Title) ; Title is "".

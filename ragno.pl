@@ -1,5 +1,4 @@
 % -*- Mode: Prolog -*-
-#!/usr/bin/env swipl
 
 /*
     ragno: a light spider writtend in (swi)prolog for crawling root web sites
@@ -92,6 +91,20 @@ get_html_page(Url, FinalUrl, Headers, DOM):-
 			     user_agent("prolog/ragno")]),
 	load_html(In, DOM, []),
         close(In)).
+
+get_final_url(Url, FinalUrl):-
+    http_open(Url, In, [final_url(FinalUrl),
+			redirect(true),
+			timeout(4),
+			%% proxy(proxy.local:80),
+			cert_verify_hook(cert_accept_any),
+			user_agent("prolog/ragno")]),
+    close(In).
+
+safe_get_final_url(Url, FinalUrl, Err):-
+    catch((get_final_url(Url, FinalUrl), Err = none),
+	  Err,
+	  FinalUrl = none).
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     get_html_page(Url, FinalUrl, Headers, DOM),
