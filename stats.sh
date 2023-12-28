@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 echo Visited Urls
 wc -l data/visited_urls.txt 
 echo "tobe visited https domains (with one dot):"

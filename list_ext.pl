@@ -1,3 +1,4 @@
+% -*- Mode: Prolog -*-
 /*
     ragno: a light spider writtend in (swi)prolog for crawling root web sites
 

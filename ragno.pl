@@ -1,3 +1,4 @@
+% -*- Mode: Prolog -*-
 #!/usr/bin/env swipl
 
 /*
@@ -85,7 +86,8 @@ get_html_page(Url, FinalUrl, Headers, DOM):-
 	http_open(Url, In, [final_url(FinalUrl),
 			     headers(Headers),
 			     redirect(true),
-			     timeout(8),
+			     timeout(4),
+			     %% proxy(proxy.local:80),
 			     cert_verify_hook(cert_accept_any),
 			     user_agent("prolog/ragno")]),
 	load_html(In, DOM, []),
@@ -125,7 +127,6 @@ crawl_root_site(GenericUrl):-
 				     external_links:ExternalLinks,
 				     headers:HeadersDict
      				    }).
-
 
 crawl_root_sites([]).
 crawl_root_sites([Url|Urls]):-
