@@ -1,9 +1,9 @@
 % -*- Mode: Prolog -*-
 
 /*
-    ragno: a light spider writtend in (swi)prolog for crawling root web sites
+    ragno: a light spider written in (swi)prolog for crawling root web sites
 
-    Copyright (C) 2022  Matteo Redaelli
+    Copyright (C) 2022-2023  Matteo Redaelli
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,19 +34,6 @@
 
 main(Argv) :-
     crawl_root_sites(Argv).
-
-/*
-TODO
-domini con redirect è su un altro dominio: es http to https, ...
-se trovo a.b.com dovrei esplorare anche i domini b.com e www.b.com 
-parsing html
-- head/title
-- body/h1
-
-code di priorità: domain.com o www.domain.com è priroitario rispetto a subdomain.domain.com
-
-i link andrebbero aperti x ottenere la targeturl prima di estrarre i domini.: potrebbero delle short url
-*/
 
 %% needed to convert headers to dict
 
@@ -80,25 +67,28 @@ save_uri_to_jsonfile(Uri, DomainDict):-
     close(Fd).
 
 
+ragno_http_options(MyOptions, HttpOptions):-
+    %% [final_url(FinalUrl), headers(Headers)]
+    %% collapse_options(MergedHttpOptions, FinalHttpOptions),
+    merge_options(MyOptions,
+		  [redirect(true),
+		   timeout(4),
+		   %% proxy(proxy.local:80),
+		   cert_verify_hook(cert_accept_any),
+		   user_agent("Ragno.pl/0.1")], HttpOptions).
+
+
+
 get_html_page(Url, FinalUrl, Headers, DOM):-
+    ragno_http_options([final_url(FinalUrl), headers(Headers)], HttpOptions),
     setup_call_cleanup(
-	http_open(Url, In, [final_url(FinalUrl),
-			     headers(Headers),
-			     redirect(true),
-			     timeout(4),
-			     %% proxy(proxy.local:80),
-			     cert_verify_hook(cert_accept_any),
-			     user_agent("prolog/ragno")]),
+	http_open(Url, In, HttpOptions),
 	load_html(In, DOM, []),
         close(In)).
 
 get_final_url(Url, FinalUrl):-
-    http_open(Url, In, [final_url(FinalUrl),
-			redirect(true),
-			timeout(4),
-			%% proxy(proxy.local:80),
-			cert_verify_hook(cert_accept_any),
-			user_agent("prolog/ragno")]),
+    ragno_http_options([final_url(FinalUrl)], HttpOptions),
+    http_open(Url, In, HttpOptions),
     close(In).
 
 safe_get_final_url(Url, FinalUrl, Err):-
@@ -112,15 +102,14 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     %% filter http or https uris
     include(uri_ext:http_uri, Links, HttpLinks).
 
-safe_crawl_html_page(Url, FinalUrl, Headers, Links):-
-    catch(crawl_html_page(Url, FinalUrl, Headers, Links),
-	  ExTerm,
-	  (format("ERROR: ~q\n",[ExTerm]),
-	   false)).
-
+%% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
+%%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
+%% 	  Err,
+%% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
+    
 crawl_root_site(GenericUrl):-
     uri_ext:domain_uri(GenericUrl, Url),
-    safe_crawl_html_page(Url, FinalUrl, Headers, Links),
+    crawl_html_page(Url, FinalUrl, Headers, Links),
     %% TODO
     %% [X] remove fragments like #xxx
     %% [ ] https://website.com shoudl be renamed to https://website.com/
