@@ -107,31 +107,29 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
-crawl_root_site(GenericUrl):-
-    uri_ext:domain_uri(GenericUrl, Url),
-    crawl_html_page(Url, FinalUrl, Headers, Links),
+crawl_root_site(Url, Domain, FinalDomain, FinalUrl, Domains, Headers, Links):-
     %% TODO
     %% [X] remove fragments like #xxx
-    %% [ ] https://website.com shoudl be renamed to https://website.com/
-    %% [ ] removing port 80 for http nd 443 for https urls
-    
+    %% [X] https://website.com shoudl be renamed to https://website.com/
+    %% [X] removing port 80 for http nd 443 for https urls
+    uri_ext:domain_uri(Url, Domain),
+    crawl_html_page(Domain, FinalUrl, Headers, Links),
+
     %% extract the domain
     uri_ext:domain_uri(FinalUrl, FinalDomain),
     %%uri_ext:domain_uri(Url, Domain),
     %% split external and internal links
-    partition(uri_ext:is_internal_link(FinalDomain), Links, InternalLinks, ExternalLinks),
-    headers_to_dict(Headers, HeadersDict),
-    uri_ext:domain_uris(Links, RootLinks),
-    save_uri_to_jsonfile(Url, domain{url:Url,
-				     final_url:FinalUrl,
-				     linked_domains:RootLinks,
-				     internal_links:InternalLinks,
-				     external_links:ExternalLinks,
-				     headers:HeadersDict
-     				    }).
+    uri_ext:domain_uris(Links, Domains).
 
 crawl_root_sites([]).
 crawl_root_sites([Url|Urls]):-
-    writeln(Url),
-    crawl_root_site(Url),
+    crawl_root_site(Url, Domain, FinalDomain, FinalUrl, Domains, Headers, Links),
+    headers_to_dict(Headers, HeadersDict),
+    save_uri_to_jsonfile(Url, domain{domain:Domain,
+				     finalDomain:FinalDomain,
+				     final_url:FinalUrl,
+				     linkedDomains:Domains,
+				     headers:HeadersDict,
+				     links:Links
+     				    }),
     crawl_root_sites(Urls).
