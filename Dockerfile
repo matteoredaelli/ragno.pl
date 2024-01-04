@@ -7,4 +7,6 @@ COPY . /app
 
 WORKDIR /app
 
+ENV RAGNO_DATA=/app/data
+
 CMD ["bash", "/app/bin/ragno.sh"]
