@@ -7,18 +7,19 @@ ragno.pl is a light crawler written in (SWI) Prolog
 Start with one or more domains to be used as "seeds".
 
 ```bash
-./ragno.pl https://www.redaelli.org/
+DOMAIN=https://it.wikipedia.com/ make run
 ```
 
-Then you can go on (re)running 
+Or using a docker container 
 
 ```bash
-./ragno.sh
+docker build -t ragnopl .
+docker run --rm -ti -v ~/Downloads/ragnopl:/app/data ragnopl run
 ```
 
 Good lucks!
 
-## OUTPUT
+## SAMPLE OUTPUT
 
 Ragno creates a new file for each domain, for instance data/re/redaelli/https\:www.redaelli.org.json 
 

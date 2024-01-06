@@ -4,4 +4,4 @@ fi
 
 docker rmi ragnopl
 docker build -t ragnopl .
-#docker run --rm -it -v $RAGNO_DATA:/app/data ragnopl bin/ragno.sh
+#docker run --rm -it -v $RAGNO_DATA:/app/data ragnopl run
