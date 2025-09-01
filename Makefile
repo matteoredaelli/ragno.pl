@@ -1,4 +1,4 @@
-RAGNO_DATA ?= ~/Downloads/ragnopl
+RAGNO_DATA ?= data
 
 visited_domains.csv:
 	find ${RAGNO_DATA} -name *.json | xargs jq -r '.domain, .finalDomain' | sort -u > ${RAGNO_DATA}/$@

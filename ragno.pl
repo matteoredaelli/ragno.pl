@@ -114,7 +114,6 @@ crawl_root_site(Url, Domain, FinalDomain, FinalUrl, Domains, Headers, Links):-
     %% [X] removing port 80 for http nd 443 for https urls
     uri_ext:domain_uri(Url, Domain),
     crawl_html_page(Domain, FinalUrl, Headers, Links),
-
     %% extract the domain
     uri_ext:domain_uri(FinalUrl, FinalDomain),
     %%uri_ext:domain_uri(Url, Domain),

@@ -18,8 +18,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-:- module(html_utils, [
-	      extract_all_links/3,
+:- module(html_ext, [
 	      safe_extract_all_links/3,
 	      extract_table_to_list_of_list/2,
 	      find_table/3
@@ -56,7 +55,7 @@ extract_all_links(DOM, Url, Links):-
 
 safe_extract_all_links(DOM, Url, Links):-
     catch(extract_all_links(DOM, Url, Links),
-	  ExTerm, (format("Exception: ~q\n",[ExTerm]), Links is [])).
+			ExTerm, (format("Exception: ~q\n",[ExTerm]), Links is [])).
 
 safe_extract_title(DOM, Title):-
     xpath(DOM, //head/title(text), Title) ; Title is "".

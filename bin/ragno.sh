@@ -23,7 +23,7 @@ do
     fi
 
     echo "Crawling '${url}'..."
-    swipl ragno.pl "${url}"
+    swipl load.pl "${url}"
     if [ $? -eq 0 ] ; then
 	errors=0
     else
