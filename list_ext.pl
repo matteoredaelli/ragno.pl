@@ -23,7 +23,9 @@
 		     atomic_lists_concat/3,
 		     merge_lists/3,
 		     groupN/3,
-		     range/3
+		     range/3,
+				 remove_list/3,
+				 remove_list_keys/3
 		    ]).
 
 selectN(0, L, [], L).
@@ -70,3 +72,9 @@ range(X,Y,[X|Xs]) :-
     X =< Y,
     Z is X+1,
     range(Z,Y,Xs).
+
+remove_list(List, ToRemove, Result) :-
+    exclude({ToRemove}/[X]>>memberchk(X, ToRemove), List, Result).
+
+remove_list_keys(List, ToRemove, Result) :-
+	 exclude([X]>>(functor(X, F, _), member(F, ToRemove)), List, Result).

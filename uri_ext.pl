@@ -19,10 +19,10 @@
 */
 
 :- module(uri_ext, [
-	      domain_uri/2,
-	      domain_uris/2,
-	      domain_details/3,
-	      http_uri/1,
+	      uri_domain/2,
+	      uris_domains/2,
+	      level2_domain/2,
+	      is_http_uri/1,
 	      uri_without_fragment/2
 	  ]).
 
@@ -30,36 +30,39 @@
 :- use_module(library(apply)).
 
 
-domain_uri(Uri, RootUri):-
-    uri_normalized("/", Uri, DirtyRootUri),
-    %% Sometimes I see %20 inside the domain name
-    re_replace("%20"/g, "", DirtyRootUri, RootUri).
+/*
+* add / at the end or remove paths from url
+*/
+uri_domain(Uri, Domain):-
+    uri_components(Uri, uri_components(_, Domain, _, _, _)).
 
-domain_uris(Links, RootLinks):-
-    convlist([Uri, RootUri]>>domain_uri(Uri, RootUri), Links, RootUris),
-    setof(X, member(X,RootUris), RootLinks).    
+uris_domains(Uris, Domains):-
+    convlist([Uri, Domain]>>uri_domain(Uri, Domain), Uris, DomainsList),
+    setof(X, member(X,DomainsList), Domains).    
 
 same_domain(Uri1, Uri2):-
-    domain_uri(Uri1, RootUri),
-    domain_uri(Uri2, RootUri).
+    uri_domain(Uri1, Domain),
+    uri_domain(Uri2, Domain).
 
-is_internal_link(Domain, Link):-
-    uri_components(Link,  uri_components(_Schema, Domain, _, _, _)).
+same_level2_domain(Uri1, Uri2):-
+    uri_domain(Uri1, Domain1),
+    uri_domain(Uri2, Domain2),
+    level2_domain(Domain1, Domain),
+    level2_domain(Domain2, Domain).
 
-is_external_link(Domain, Link):-
-    \+ is_internal_link(Domain, Link).
+same_domain_link(Uri, Domain):-
+    uri_domain(Uri, Domain).
 
-filter_external_links(Links, Domain, ExternalLinks):-
-    include(is_external_link(Domain), Links, ExternalLinks).
+is_internal_link(Uri, Domain):-
+    uri_domain(Uri, UriDomain),
+    level2_domain(UriDomain, Domain).
+
+is_external_link(Uri, Domain):-
+    \+ is_internal_link(Uri, Domain).
 
 uri_without_fragment(Url1, Url2):-
     uri_components(Url1, uri_components(Schema, DomainPort, Path, Params, _Fragment)),
     uri_components(Url2, uri_components(Schema, DomainPort, Path, Params, _)).
-
-domain_details(Domain, DomainList, Level):-
-    atom_string(Domain, DomainString),
-    split_string(DomainString, ".", "", DomainList),
-    length(DomainList, Level).
 
 /*
 level2_domain(+Domain1, -Domain2)
@@ -67,15 +70,17 @@ level2_domain(+Domain1, -Domain2)
 convert a domain like 'www.redaelli.org' to 'redaelli.org'
 
 */
-level2_domain(Domain1, Domain2):-
-    domain_details(Domain1, DomainList, _Level),
+level2_domain(Domain, Domain2):-
+    atom_string(Domain, DomainString),
+    split_string(DomainString, ".", "", DomainList),
     reverse(DomainList, [D1,D2|_L]), 
-    atomic_list_concat([D2, '.', D1], Domain2).
+    atomic_list_concat([D2, '.', D1], Domain2String),
+    atom_string(Domain2, Domain2String).
 
 level2_domains(Domain1List, Domain2Set):-
     convlist([Domain1, Domain2]>>level2_domain(Domain1, Domain2), Domain1List, Domain2List),
     setof(X, member(X,Domain2List), Domain2Set).    
 
-http_uri(Url):-
+is_http_uri(Url):-
     uri_components(Url, uri_components(https, _DomainPort, _Path, _Params, _)) ;
     uri_components(Url, uri_components(http, _DomainPort, _Path, _Params, _)).

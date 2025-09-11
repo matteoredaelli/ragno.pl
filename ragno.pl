@@ -28,12 +28,13 @@
 :- use_module(library(apply)).
 
 :- use_module(html_ext).
+:- use_module(tagger).
 :- use_module(uri_ext).
 
 :- initialization(main, main).
 
 main(Argv) :-
-    crawl_root_sites(Argv).
+    crawl_domains(Argv).
 
 %% needed to convert headers to dict
 
@@ -52,16 +53,9 @@ safe_make_directory(Directory):-
 	 ).
 
 save_uri_to_jsonfile(Uri, DomainDict):-
-    uri_components(Uri, uri_components(_Schema, Domain, _, _, _)),
-    domain_details(Domain, DomainList, _Level),
-    reverse(DomainList, [_D1,D2|_X]),
-    sub_atom(D2, 0, 2, _After, D3),
-    atomic_list_concat(['data/', D3], '', Directory),
-    safe_make_directory(Directory),
-    atomic_list_concat([Directory, '/', D2], '', Directory2),
-    safe_make_directory(Directory2),
+    %uri_components(Uri, uri_components(_Schema, Domain, _, _, _)),
     re_replace("/"/g, "", Uri, Filename),
-    atomic_list_concat([Directory2, '/', Filename, '.json'], FullPathFilename),
+    atomic_list_concat(['data/', Filename, '.json'], FullPathFilename),
     open(FullPathFilename, write, Fd),
     json_write_dict(Fd, DomainDict, [serialize_unknown(true)]),
     close(Fd).
@@ -80,10 +74,10 @@ ragno_http_options(MyOptions, HttpOptions):-
 
 
 get_html_page(Url, FinalUrl, Headers, DOM):-
-    ragno_http_options([final_url(FinalUrl), headers(Headers)], HttpOptions),
+    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
     setup_call_cleanup(
-	http_open(Url, In, HttpOptions),
-	load_html(In, DOM, []),
+	    http_open(Url, In, HttpOptions),
+	    load_html(In, DOM, []),
         close(In)).
 
 get_final_url(Url, FinalUrl):-
@@ -97,38 +91,45 @@ safe_get_final_url(Url, FinalUrl, Err):-
 	  FinalUrl = none).
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
-    get_html_page(Url, FinalUrl, Headers, DOM),
+    get_html_page(Url, FinalUrl, AllHeaders, DOM),
+    list_ext:remove_list_keys(AllHeaders, [etag, content_security_policy, set_cookie], Headers),
     html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
     %% filter http or https uris
-    include(uri_ext:http_uri, Links, HttpLinks).
+    include(uri_ext:is_http_uri, Links, HttpLinks).
 
 %% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
 %%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
-crawl_root_site(Url, Domain, FinalDomain, FinalUrl, Domains, Headers, Links):-
-    %% TODO
-    %% [X] remove fragments like #xxx
-    %% [X] https://website.com shoudl be renamed to https://website.com/
-    %% [X] removing port 80 for http nd 443 for https urls
-    uri_ext:domain_uri(Url, Domain),
-    crawl_html_page(Domain, FinalUrl, Headers, Links),
-    %% extract the domain
-    uri_ext:domain_uri(FinalUrl, FinalDomain),
-    %%uri_ext:domain_uri(Url, Domain),
+crawl_url(Url, [url(Url), 
+                domain(Domain),
+                final_domain(FinalDomain),
+                final_url(FinalUrl),
+                domains(Domains),
+                headers(Headers),
+                tags(Tags),
+                internalLinks(InternalLinks),
+                externalLinks(ExternalLinks)
+]):-
+    uri_ext:uri_domain(Url, Domain),
+    crawl_html_page(Url, FinalUrl, Headers, Links),
+ %% internal links
+    findall(Uri,
+            ( member(Uri, Links),
+            uri_ext:is_internal_link(Uri, FinalDomain)
+            ),
+            InternalLinks),
+            subtract(Links, InternalLinks, ExternalLinks),
+    tagger:tags_from_headers(Headers, Tags),
+%%Tags = [],
+    uri_components(FinalUrl, uri_components(_, FinalDomain, _PathF, _ParamsF, _FragF)),
     %% split external and internal links
-    uri_ext:domain_uris(Links, Domains).
+    uri_ext:uris_domains(Links, Domains).
 
-crawl_root_sites([]).
-crawl_root_sites([Url|Urls]):-
-    crawl_root_site(Url, Domain, FinalDomain, FinalUrl, Domains, Headers, Links),
-    headers_to_dict(Headers, HeadersDict),
-    save_uri_to_jsonfile(Url, domain{domain:Domain,
-				     finalDomain:FinalDomain,
-				     final_url:FinalUrl,
-				     linkedDomains:Domains,
-				     headers:HeadersDict,
-				     links:Links
-     				    }),
-    crawl_root_sites(Urls).
+crawl_domains([]).
+crawl_domains([Domain|Domains]):-
+    uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
+    crawl_url(Url, Data),
+    print(Data),
+    crawl_domains(Domains).
