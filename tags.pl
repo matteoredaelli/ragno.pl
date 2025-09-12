@@ -19,6 +19,7 @@
 */
 
 :- module(tags, [
+	      header_tags/2,
 	      key_tags/2,
 	      value_tags/2
 	  ]).
@@ -32,12 +33,18 @@ key_tags("bigip",      ['bigip']).
 key_tags("akamai",     ['cdn/akamai']).
 key_tags("cloudfront", ['cdn/cloudfront']).
 key_tags("netlify",    ['cloud/netlify']).
+key_tags("x-edg",      ['cloud/edgio']).
+key_tags("aruba",      ['cloud/aruba']).
 key_tags("x-goog",     ['cloud/google']).
 key_tags("varnish",    ['varnish']).
 	
 
-tag(server('Netlify'), ['cloud/netlify']).
-tag(server(X), [server(X)]).
-tag('x-powered-by'(X), ['x-powered-by'(X)]).
+header_tags(server('Netlify'), ['cloud/netlify']).
+header_tags(server(X), [server(X)]).
+header_tags('x-powered-by'(X), ['x-powered-by'(X)]).
 
 value_tags("cloudflare", ['cdn/cloudflare']).
+value_tags("httpd", ['sw/apache']).
+value_tags("nginx", ['sw/nginx']).
+value_tags("varnish", ['sw/varnish']).
+value_tags("lightspeed", ['sw/lightspeed']).

@@ -23,6 +23,7 @@
 	      uris_domains/2,
 	      level2_domain/2,
 	      is_http_uri/1,
+	      split_links/4,
 	      uri_without_fragment/2
 	  ]).
 
@@ -51,7 +52,8 @@ same_level2_domain(Uri1, Uri2):-
     level2_domain(Domain2, Domain).
 
 same_domain_link(Uri, Domain):-
-    uri_domain(Uri, Domain).
+    uri_domain(Uri, DomainAtom),
+    atom_string(DomainAtom, Domain).
 
 is_internal_link(Uri, Domain):-
     uri_domain(Uri, UriDomain),
@@ -84,3 +86,8 @@ level2_domains(Domain1List, Domain2Set):-
 is_http_uri(Url):-
     uri_components(Url, uri_components(https, _DomainPort, _Path, _Params, _)) ;
     uri_components(Url, uri_components(http, _DomainPort, _Path, _Params, _)).
+
+split_links(Links, Domain, SameDomainLinks, ExternalLinks):-
+    include([X]>> (member(X,Links), same_domain_link(X,Domain)), Links, SameDomainLinks),
+    subtract(Links, SameDomainLinks, ExternalLinks).
+    

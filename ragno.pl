@@ -27,6 +27,7 @@
 :- use_module(library(uri)).
 :- use_module(library(apply)).
 
+:- use_module(config).
 :- use_module(html_ext).
 :- use_module(tagger).
 :- use_module(uri_ext).
@@ -64,14 +65,14 @@ save_uri_to_jsonfile(Uri, DomainDict):-
 ragno_http_options(MyOptions, HttpOptions):-
     %% [final_url(FinalUrl), headers(Headers)]
     %% collapse_options(MergedHttpOptions, FinalHttpOptions),
-    merge_options(MyOptions,
-		  [redirect(true),
-		   timeout(4),
-		   %% proxy(proxy.local:80),
-		   cert_verify_hook(cert_accept_any),
-		   user_agent("Ragno.pl/0.1")], HttpOptions).
+    config:http_options(HttpDefaultOptions),
+    merge_options(MyOptions, HttpDefaultOptions, HttpOptions).
 
 
+get_http_page_info(Url, FinalUrl, Headers):-
+    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
+    http_open(Url, In, HttpOptions),
+    close(In).
 
 get_html_page(Url, FinalUrl, Headers, DOM):-
     ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
@@ -80,19 +81,20 @@ get_html_page(Url, FinalUrl, Headers, DOM):-
 	    load_html(In, DOM, []),
         close(In)).
 
-get_final_url(Url, FinalUrl):-
-    ragno_http_options([final_url(FinalUrl)], HttpOptions),
-    http_open(Url, In, HttpOptions),
-    close(In).
-
-safe_get_final_url(Url, FinalUrl, Err):-
-    catch((get_final_url(Url, FinalUrl), Err = none),
-	  Err,
-	  FinalUrl = none).
+%% get_final_url(Url, FinalUrl):-
+%%     ragno_http_options([final_url(FinalUrl)], HttpOptions),
+%%     http_open(Url, In, HttpOptions),
+%%     close(In).
+%%
+%% safe_get_final_url(Url, FinalUrl, Err):-
+%%     catch((get_final_url(Url, FinalUrl), Err = none),
+%% 	  Err,
+%% 	  FinalUrl = none).
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     get_html_page(Url, FinalUrl, AllHeaders, DOM),
-    list_ext:remove_list_keys(AllHeaders, [etag, content_security_policy, set_cookie], Headers),
+    removed_http_headers(HeadersToBeRemoved),
+    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
     html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
     %% filter http or https uris
     include(uri_ext:is_http_uri, Links, HttpLinks).
@@ -109,21 +111,18 @@ crawl_url(Url, [url(Url),
                 domains(Domains),
                 headers(Headers),
                 tags(Tags),
-                internalLinks(InternalLinks),
+                internalLinks(SameDomainLinks),
                 externalLinks(ExternalLinks)
 ]):-
     uri_ext:uri_domain(Url, Domain),
-    crawl_html_page(Url, FinalUrl, Headers, Links),
+    crawl_html_page(Url, FinalUrl, Headers, AllLinks),
+    %% remove finalUrl from links
+    select(FinalUrl, AllLinks, Links),
+    uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
  %% internal links
-    findall(Uri,
-            ( member(Uri, Links),
-            uri_ext:is_internal_link(Uri, FinalDomain)
-            ),
-            InternalLinks),
-            subtract(Links, InternalLinks, ExternalLinks),
+    split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
     tagger:tags_from_headers(Headers, Tags),
 %%Tags = [],
-    uri_components(FinalUrl, uri_components(_, FinalDomain, _PathF, _ParamsF, _FragF)),
     %% split external and internal links
     uri_ext:uris_domains(Links, Domains).
 

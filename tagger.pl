@@ -36,7 +36,8 @@ tags_from_headers(Headers, Tags):-
 	downcase_atom(ValuesStr, ValuesStrLower),
   all_tags_from_keys(KTags, KeysStrLower),
   all_tags_from_values(VTags, ValuesStrLower),
-  append(VTags, KTags, Tags).
+  all_tags_from_h(HTags, Headers),
+  foldl(append, [HTags, VTags, KTags], [], Tags).
 
 tags_from_keys(Tags, String):-
 	tags:key_tags(Key, Tags),
@@ -45,12 +46,19 @@ tags_from_keys(Tags, String):-
 tags_from_values(Tags, String):-
 	tags:value_tags(Value, Tags),
 	sub_string(String, _, _, _, Value).
-	
+
+tags_from_h(Tags, Headers):-
+  member(H, Headers),
+	tags:header_tags(H, Tags).
+
+all_tags_from_h(Tags, Headers):-
+	findall(T, tags_from_h(T, Headers), ListTags),
+	flatten(ListTags, Tags).
+
 all_tags_from_keys(Tags, String):-
-	findall(Tags, tags_from_keys(Tags, String), ListTags),
+	findall(T, tags_from_keys(T, String), ListTags),
 	flatten(ListTags, Tags).
 
 all_tags_from_values(Tags, String):-
-	findall(Tags, tags_from_values(Tags, String), ListTags),
+	findall(T, tags_from_values(T, String), ListTags),
 	flatten(ListTags, Tags).
-
