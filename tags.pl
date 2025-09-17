@@ -19,13 +19,14 @@
 */
 
 :- module(tags, [
+	      social_tag/2,
 	      header_tags/2,
 	      key_tags/2,
 	      value_tags/2
 	  ]).
 
-:-use_module(library(uri)).
-:-use_module(headers_ext).
+:- use_module(library(uri)).
+:- use_module(headers_ext).
 
 key_tags("x_amz_",     ['cloud/aws']).
 key_tags("x_azure",    ['cloud/azure']).
@@ -48,3 +49,13 @@ value_tags("httpd", ['sw/apache']).
 value_tags("nginx", ['sw/nginx']).
 value_tags("varnish", ['sw/varnish']).
 value_tags("lightspeed", ['sw/lightspeed']).
+
+social_tag(facebook, "^https?://(www.)?facebook.com/profile\\.php\\?id=(?<user>\\d+)$").
+social_tag(facebook, "^https?://(www.)?facebook.com/(?<user>[A-Za-z0-9_\\-.]+)/?$").
+social_tag(github, "^https?://(www.)?github.com/(?<user>[A-Za-z0-9_.-]+)/?$").
+social_tag(instagram, "^https?://(www.)?instagram.com/(?<user>[A-Za-z0-9_.-]+)/?$").
+social_tag(instagram, "^https?://(www.)?instagr.am/(?<user>[A-Za-z0-9_.-]+)/?$").
+social_tag(linkedin, "^https?://(www.)?linkedin.com/(company/)?(?<user>[A-Za-z0-9_.-@]+)/?").
+social_tag(youtube, "^https?://(www.)?youtube.com/((c|user)/)?(?<user>[A-z0-9_.-@]+)/?").
+social_tag(tiktok, "^https?://(www.)?tiktok.com/@(?<user>[A-Za-z0-9_.-]+)/?$").
+social_tag(twitter, "^https?://(www.)?twitter.com/(?<user>[A-Za-z0-9_.-]+)/?$").

@@ -18,11 +18,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-:- module(tagger_ext, [
-	      tags_from_headers/2,
-	      tags_from_keys/2,
-	      tags_from_values/2
-	  ]).
+:- module(tagger, [
+  tags_from_headers/2,
+  social_tag_from_links/2,
+  social_tags_from_links/2,
+  tags_from_values/2
+]).
 
 :- use_module(library(uri)).
 :- use_module(headers_ext).
@@ -62,3 +63,13 @@ all_tags_from_keys(Tags, String):-
 all_tags_from_values(Tags, String):-
 	findall(T, tags_from_values(T, String), ListTags),
 	flatten(ListTags, Tags).
+
+social_tag_from_links(Tag, Links):-
+  member(L, Links),
+	tags:social_tag(SocialName, Regex),
+	re_matchsub(Regex, L, Dict, []),
+  User = Dict.user,
+	Tag =.. [SocialName, User].
+
+social_tags_from_links(Tags, Links):-
+	findall(T, social_tag_from_links(T, Links), Tags).

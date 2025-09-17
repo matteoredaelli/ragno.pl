@@ -15,3 +15,8 @@ new_domains.csv: linked_domains.csv visited_domains.csv
 run: new_domains.csv
 	RAGNO_DATA=${RAGNO_DATA} bin/ragno.sh ${NEW_DOMAIN}
 
+lint:
+	swipl -q --on-warning=status --on-error=status -g check -t halt -l ragno.pl
+
+tests:
+	swipl -g "set_prolog_flag(test, true)" -t "run_tests" tests.pl

@@ -20,9 +20,12 @@
 
 :- module(config,
 [
+    dbname/1,
     http_options/1,
     removed_http_headers/1
 ]).
+
+dbname("ragnodb").
 
 http_options( [redirect(true),
 		   timeout(4),

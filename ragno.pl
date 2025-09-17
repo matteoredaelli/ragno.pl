@@ -27,24 +27,18 @@
 :- use_module(library(uri)).
 :- use_module(library(apply)).
 
-:- use_module(config).
 :- use_module(html_ext).
+:- use_module(config).
+:- use_module(db).
 :- use_module(tagger).
 :- use_module(uri_ext).
 
 :- initialization(main, main).
 
-main(Argv) :-
+main(Argv):-
+    config:dbname(DBname),
+    db:open(DBname),
     crawl_domains(Argv).
-
-%% needed to convert headers to dict
-
-add_key_value(Term, Dict, DictNew):-
-    Term =.. [K,V],
-    DictNew = Dict.put(K,V).
-    
-headers_to_dict(Headers, Dict):-
-     foldl(add_key_value, Headers, headers{}, Dict).
 
 safe_make_directory(Directory):-
     catch(make_directory(Directory),
@@ -61,13 +55,11 @@ save_uri_to_jsonfile(Uri, DomainDict):-
     json_write_dict(Fd, DomainDict, [serialize_unknown(true)]),
     close(Fd).
 
-
 ragno_http_options(MyOptions, HttpOptions):-
     %% [final_url(FinalUrl), headers(Headers)]
     %% collapse_options(MergedHttpOptions, FinalHttpOptions),
     config:http_options(HttpDefaultOptions),
     merge_options(MyOptions, HttpDefaultOptions, HttpOptions).
-
 
 get_http_page_info(Url, FinalUrl, Headers):-
     ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
@@ -104,31 +96,31 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
-crawl_url(Url, [url(Url), 
-                domain(Domain),
-                final_domain(FinalDomain),
-                final_url(FinalUrl),
-                domains(Domains),
-                headers(Headers),
-                tags(Tags),
-                internalLinks(SameDomainLinks),
-                externalLinks(ExternalLinks)
+crawl_url(Url, [url-Url, 
+                domain-Domain,
+                final_domain-FinalDomain,
+                final_url-FinalUrl,
+                domains-Domains,
+                headers-Headers,
+                tags-Tags,
+                social_tags-SocialTags,
+                internalLinks-SameDomainLinks,
+                externalLinks-ExternalLinks
 ]):-
     uri_ext:uri_domain(Url, Domain),
     crawl_html_page(Url, FinalUrl, Headers, AllLinks),
     %% remove finalUrl from links
     select(FinalUrl, AllLinks, Links),
     uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
- %% internal links
+    %% split external and internal links
     split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
     tagger:tags_from_headers(Headers, Tags),
-%%Tags = [],
-    %% split external and internal links
+    tagger:social_tags_from_links(SocialTags, ExternalLinks),
     uri_ext:uris_domains(Links, Domains).
 
 crawl_domains([]).
 crawl_domains([Domain|Domains]):-
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
     crawl_url(Url, Data),
-    print(Data),
+    db:put(Url, Data),
     crawl_domains(Domains).

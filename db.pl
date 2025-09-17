@@ -18,20 +18,36 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-:- module(headers_ext, [
-	      headers_keys_values/3
-	  ]).
+:- module(db,
+[
+    open/1,
+    put/2,
+    get/2,
+    merge/2
+]).
 
-:-use_module(list_ext).
+:- use_module(library(rocksdb)).
 
-add_key_value(Term, Dict, DictNew):-
-    Term =.. [K,V],
-    DictNew = Dict.put(K,V).
-    
-headers_to_dict(Headers, Dict):-
-     foldl(add_key_value, Headers, headers{}, Dict).
+open(DBname):-
+  rocks_open(DBname,
+             _DB, 
+             [alias(mdb), merge(merge),value(term)]).
 
-headers_keys_values([], [], []).
-headers_keys_values([H|Headers], [K|Keys], [V|Values]):-
-	H =.. [K,V],
-	headers_keys_values(Headers, Keys, Values).
+get(K,V):-
+  rocks_get(mdb, K, Vserialized),
+  fast_term_serialized(V, Vserialized).
+
+put(K,V):-
+  fast_term_serialized(V, Vserialized),
+  rocks_put(mdb, K, Vserialized).
+
+merge(K,V):-
+  fast_term_serialized(V, Vserialized),
+  rocks_merge(mdb, K, Vserialized).
+
+enum(K,V):-
+  rocks_enum(mdb, K, Vserialized),
+  fast_term_serialized(V, Vserialized).
+
+all_records(Pairs):-
+  findall(K-V, enum(K, V), Pairs).
