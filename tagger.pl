@@ -69,7 +69,8 @@ social_tag_from_links(Tag, Links):-
 	tags:social_tag(SocialName, Regex),
 	re_matchsub(Regex, L, Dict, []),
   User = Dict.user,
-	Tag =.. [SocialName, User].
+%	Tag =.. [SocialName, User].
+	atomic_list_concat([SocialName, "/", User], Tag).
 
 social_tags_from_links(Tags, Links):-
 	findall(T, social_tag_from_links(T, Links), Tags).

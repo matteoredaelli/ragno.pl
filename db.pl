@@ -20,6 +20,8 @@
 
 :- module(db,
 [
+    merge_assocs/3,
+    delete/1,
     open/1,
     put/2,
     get/2,
@@ -31,23 +33,58 @@
 open(DBname):-
   rocks_open(DBname,
              _DB, 
-             [alias(mdb), merge(merge),value(term)]).
+             [alias(mdb), 
+              merge(merge),
+              value(string)]).
+
+delete(K):-
+%  fast_term_serialized(V, Vserialized),
+  rocks_delete(mdb, K).
 
 get(K,V):-
-  rocks_get(mdb, K, Vserialized),
-  fast_term_serialized(V, Vserialized).
+  rocks_get(mdb, K, V).
+%  fast_term_serialized(V, Vserialized).
 
 put(K,V):-
-  fast_term_serialized(V, Vserialized),
-  rocks_put(mdb, K, Vserialized).
+%  fast_term_serialized(V, Vserialized),
+  rocks_put(mdb, K, V).
 
 merge(K,V):-
-  fast_term_serialized(V, Vserialized),
-  rocks_merge(mdb, K, Vserialized).
+%  fast_term_serialized(V, Vserialized),
+  rocks_merge(mdb, K, V).
+
+merge(partial, _Key, Left, Right, Result) :-
+	debug(merge, 'Merge partial ~p ~p', [Left, Right]),
+	ord_union(Left, Right, Result).
+merge(full, _Key, Initial, Additions, Result) :-
+	debug(merge, 'Merge full ~p ~p', [Initial, Additions]),
+	append([Initial|Additions], List),
+	sort(List, Result).
+
+merge_assoc(partial, _Key, Left, Right, Result) :-
+	debug(merge, 'Merge partial ~p ~p', [Left, Right]),
+	merge_assocs(Left, Right, Result).
+merge_assoc(full, _Key, Initial, Additions, Result) :-
+	debug(merge, 'Merge full ~p ~p', [Initial, Additions]),
+	merge_assocs(Initial, Additions, Result).
+
+merge_assocs(Assoc1, Assoc2, Merged) :-
+    assoc_to_list(Assoc2, List2),
+    foldl(add_pair, List2, Assoc1, Merged).
+
+add_pair(Key-Value, AssocIn, AssocOut) :-
+    put_assoc(Key, AssocIn, Value, AssocOut).
+
+
+merge_dict(partial, _Key, Left, Right, Result) :-
+	debug(merge, 'Merge partial ~p ~p', [Left, Right]),
+	put_dict(Left, Right, Result).
+merge_dict(full, _Key, Initial, Additions, Result) :-
+	debug(merge, 'Merge full ~p ~p', [Initial, Additions]),
+	put_dict(Additions, Initial, Result).
 
 enum(K,V):-
-  rocks_enum(mdb, K, Vserialized),
-  fast_term_serialized(V, Vserialized).
+  rocks_enum(mdb, K, V).
 
 all_records(Pairs):-
   findall(K-V, enum(K, V), Pairs).

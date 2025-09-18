@@ -96,19 +96,20 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
-crawl_url(Url, [url-Url, 
-                domain-Domain,
-                final_domain-FinalDomain,
-                final_url-FinalUrl,
-                domains-Domains,
-                headers-Headers,
-                tags-Tags,
-                social_tags-SocialTags,
-                internalLinks-SameDomainLinks,
-                externalLinks-ExternalLinks
-]):-
+crawl_url(Url, domain{url:Url, 
+                domain:Domain,
+                final_domain:FinalDomain,
+                final_url:FinalUrl,
+                domains:Domains,
+                headers:HeadersDict,
+                tags:Tags,
+                social_tags:SocialTags,
+                internalLinks:SameDomainLinks,
+                externalLinks:ExternalLinks}
+):-
     uri_ext:uri_domain(Url, Domain),
     crawl_html_page(Url, FinalUrl, Headers, AllLinks),
+    headers_ext:headers_to_dict(Headers, HeadersDict),
     %% remove finalUrl from links
     select(FinalUrl, AllLinks, Links),
     uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
@@ -122,5 +123,6 @@ crawl_domains([]).
 crawl_domains([Domain|Domains]):-
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
     crawl_url(Url, Data),
-    db:put(Url, Data),
+    atom_json_dict(Json, Data, []),
+    db:put(Domain, Json),
     crawl_domains(Domains).

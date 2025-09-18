@@ -41,8 +41,10 @@ key_tags("varnish",    ['varnish']).
 	
 
 header_tags(server('Netlify'), ['cloud/netlify']).
-header_tags(server(X), [server(X)]).
-header_tags('x-powered-by'(X), ['x-powered-by'(X)]).
+header_tags(server(X), [Tag]):-
+  atomic_list_concat([server, "/", X], Tag).
+header_tags('x-powered-by'(X), [Tag]):-
+  atomic_list_concat(['x-powered-by', "/", X], Tag).
 
 value_tags("cloudflare", ['cdn/cloudflare']).
 value_tags("httpd", ['sw/apache']).
