@@ -38,7 +38,8 @@ tags_from_headers(Headers, Tags):-
   all_tags_from_keys(KTags, KeysStrLower),
   all_tags_from_values(VTags, ValuesStrLower),
   all_tags_from_h(HTags, Headers),
-  foldl(append, [HTags, VTags, KTags], [], Tags).
+  foldl(append, [HTags, VTags, KTags], [], TagsList),
+	list_to_set(TagsList, Tags).
 
 tags_from_keys(Tags, String):-
 	tags:key_tags(Key, Tags),
@@ -73,4 +74,5 @@ social_tag_from_links(Tag, Links):-
 	atomic_list_concat([SocialName, "/", User], Tag).
 
 social_tags_from_links(Tags, Links):-
-	findall(T, social_tag_from_links(T, Links), Tags).
+	findall(T, social_tag_from_links(T, Links), TagsList),
+	list_to_set(TagsList, Tags).

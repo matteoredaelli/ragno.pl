@@ -27,7 +27,7 @@ do
     if [ $? -eq 0 ] ; then
 	errors=0
     else
-	echo $url >> $RAGNO_DATA/skipped_urls.csv
+	echo $url >> $RAGNO_DATA/skipped.csv
  	errors=$(expr $errors + 1)
     fi
     count=$(expr $count + 1)

@@ -28,7 +28,9 @@
     merge/2
 ]).
 
+:- use_module(library(http/json)).
 :- use_module(library(rocksdb)).
+:- use_module(library(pcre)).
 
 open(DBname):-
   rocks_open(DBname,
@@ -42,12 +44,13 @@ delete(K):-
   rocks_delete(mdb, K).
 
 get(K,V):-
-  rocks_get(mdb, K, V).
-%  fast_term_serialized(V, Vserialized).
+    rocks_get(mdb, K, Json),
+    atom_json_dict(Json, V, []).
 
 put(K,V):-
+    atom_json_dict(Json, V, []),
 %  fast_term_serialized(V, Vserialized),
-  rocks_put(mdb, K, V).
+    rocks_put(mdb, K, Json).
 
 merge(K,V):-
 %  fast_term_serialized(V, Vserialized),
@@ -84,7 +87,8 @@ merge_dict(full, _Key, Initial, Additions, Result) :-
 	put_dict(Additions, Initial, Result).
 
 enum(K,V):-
-  rocks_enum(mdb, K, V).
+  rocks_enum(mdb, K, Json),
+  atom_json_dict(Json, V, []).
 
 all_records(Pairs):-
   findall(K-V, enum(K, V), Pairs).

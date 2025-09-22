@@ -40,21 +40,6 @@ main(Argv):-
     db:open(DBname),
     crawl_domains(Argv).
 
-safe_make_directory(Directory):-
-    catch(make_directory(Directory),
-	  _ExTerm,
-	  %%format("WARNING: ~q\n",[ExTerm])
-	  true
-	 ).
-
-save_uri_to_jsonfile(Uri, DomainDict):-
-    %uri_components(Uri, uri_components(_Schema, Domain, _, _, _)),
-    re_replace("/"/g, "", Uri, Filename),
-    atomic_list_concat(['data/', Filename, '.json'], FullPathFilename),
-    open(FullPathFilename, write, Fd),
-    json_write_dict(Fd, DomainDict, [serialize_unknown(true)]),
-    close(Fd).
-
 ragno_http_options(MyOptions, HttpOptions):-
     %% [final_url(FinalUrl), headers(Headers)]
     %% collapse_options(MergedHttpOptions, FinalHttpOptions),
@@ -97,6 +82,7 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
 crawl_url(Url, domain{url:Url, 
+                ragno_status: done, 
                 domain:Domain,
                 final_domain:FinalDomain,
                 final_url:FinalUrl,
@@ -108,11 +94,28 @@ crawl_url(Url, domain{url:Url,
                 externalLinks:ExternalLinks}
 ):-
     uri_ext:uri_domain(Url, Domain),
-    crawl_html_page(Url, FinalUrl, Headers, AllLinks),
-    headers_ext:headers_to_dict(Headers, HeadersDict),
-    %% remove finalUrl from links
-    select(FinalUrl, AllLinks, Links),
+    db:put(Domain, 
+           domain{url:Url, 
+                  ragno_status: getting_page, 
+                  domain:Domain}),
+    get_html_page(Url, FinalUrl, AllHeaders, DOM),
     uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
+    removed_http_headers(HeadersToBeRemoved),
+    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+    headers_ext:headers_to_dict(Headers, HeadersDict),
+    db:put(Domain, 
+           domain{url:Url, 
+                  ragno_status: headers, 
+                  domain:Domain,
+                  final_domain:FinalDomain,
+                  final_url:FinalUrl,
+                  headers:HeadersDict
+                  }),
+    html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
+    %% filter http or https uris
+    include(uri_ext:is_http_uri, AllLinks, HttpLinks),
+    %% remove finalUrl from links
+    select(FinalUrl, HttpLinks, Links),
     %% split external and internal links
     split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
     tagger:tags_from_headers(Headers, Tags),
@@ -123,6 +126,5 @@ crawl_domains([]).
 crawl_domains([Domain|Domains]):-
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
     crawl_url(Url, Data),
-    atom_json_dict(Json, Data, []),
-    db:put(Domain, Json),
+    db:put(Domain, Data),
     crawl_domains(Domains).

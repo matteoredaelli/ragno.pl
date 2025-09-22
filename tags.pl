@@ -29,6 +29,7 @@
 :- use_module(headers_ext).
 
 key_tags("x_amz_",     ['cloud/aws']).
+key_tags("x_amz_cf_",  ['cdn/cloudfront']).
 key_tags("x_azure",    ['cloud/azure']).
 key_tags("bigip",      ['bigip']).
 key_tags("akamai",     ['cdn/akamai']).
@@ -57,7 +58,7 @@ social_tag(facebook, "^https?://(www.)?facebook.com/(?<user>[A-Za-z0-9_\\-.]+)/?
 social_tag(github, "^https?://(www.)?github.com/(?<user>[A-Za-z0-9_.-]+)/?$").
 social_tag(instagram, "^https?://(www.)?instagram.com/(?<user>[A-Za-z0-9_.-]+)/?$").
 social_tag(instagram, "^https?://(www.)?instagr.am/(?<user>[A-Za-z0-9_.-]+)/?$").
-social_tag(linkedin, "^https?://(www.)?linkedin.com/(company/)?(?<user>[A-Za-z0-9_.-@]+)/?").
-social_tag(youtube, "^https?://(www.)?youtube.com/((c|user)/)?(?<user>[A-z0-9_.-@]+)/?").
+social_tag(linkedin, "^https?://(www.)?linkedin.com/(company/)?(?<user>[A-Za-z0-9_\\.-@]+)/?$").
+social_tag(youtube, "^https?://(www.)?youtube.com/((c|user)/)?(?<user>[A-z0-9_\\.-@]+)/?$").
 social_tag(tiktok, "^https?://(www.)?tiktok.com/@(?<user>[A-Za-z0-9_.-]+)/?$").
 social_tag(twitter, "^https?://(www.)?twitter.com/(?<user>[A-Za-z0-9_.-]+)/?$").
