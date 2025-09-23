@@ -81,46 +81,46 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
     
-crawl_url(Url, domain{url:Url, 
-                ragno_status: done, 
-                domain:Domain,
-                final_domain:FinalDomain,
-                final_url:FinalUrl,
-                domains:Domains,
-                headers:HeadersDict,
-                tags:Tags,
-                social_tags:SocialTags,
-                internalLinks:SameDomainLinks,
-                externalLinks:ExternalLinks}
-):-
+crawl_url(Url, Data):-
     uri_ext:uri_domain(Url, Domain),
-    db:put(Domain, 
-           domain{url:Url, 
-                  ragno_status: getting_page, 
-                  domain:Domain}),
+    get_time(Timestamp),
+    Data01 = domain{url:Url, 
+                    ragno_status:starting,
+                    ragno_ts:Timestamp,
+                    domain:Domain},
+    db:put(Domain, Data01),
     get_html_page(Url, FinalUrl, AllHeaders, DOM),
     uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
     removed_http_headers(HeadersToBeRemoved),
     list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
     headers_ext:headers_to_dict(Headers, HeadersDict),
-    db:put(Domain, 
-           domain{url:Url, 
-                  ragno_status: headers, 
-                  domain:Domain,
-                  final_domain:FinalDomain,
-                  final_url:FinalUrl,
-                  headers:HeadersDict
-                  }),
+    put_dict(domain{ragno_status: headers, 
+                    final_domain:FinalDomain,
+                    final_url:FinalUrl,
+                    headers:HeadersDict
+                    }, Data01, Data02),
+    db:put(Domain, Data02),
     html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
     %% filter http or https uris
     include(uri_ext:is_http_uri, AllLinks, HttpLinks),
     %% remove finalUrl from links
     select(FinalUrl, HttpLinks, Links),
+    uri_ext:uris_domains(Links, Domains),
     %% split external and internal links
     split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
+    put_dict(domain{ragno_status: done, 
+                    domains:Domains,
+                    internalLinks:SameDomainLinks,
+                    externalLinks:ExternalLinks},
+             Data02, Data03),
+    db:put(Domain, Data03),
     tagger:tags_from_headers(Headers, Tags),
     tagger:social_tags_from_links(SocialTags, ExternalLinks),
-    uri_ext:uris_domains(Links, Domains).
+    put_dict(domain{ragno_status: done, 
+                    tags:Tags,
+                    social_tags:SocialTags},
+             Data03, Data),
+    db:put(Domain, Data).
 
 crawl_domains([]).
 crawl_domains([Domain|Domains]):-

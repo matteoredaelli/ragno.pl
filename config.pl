@@ -34,12 +34,15 @@ http_options( [redirect(true),
 		   user_agent("Ragno.pl/0.1")]).
 
 removed_http_headers([alt_svc,
-                            cache_control,
-                            content_security_policy,
-                            etag,
-                            set_cookie,
-                            x_cache,
-                            x_cache_hits,
-                            x_timer,
-                            x_xss_protection
-                           ]).
+                      cache_control,
+                      content_security_policy,
+                      etag,
+                      reporting_endpoints,
+                      strict_transport_security,
+                      set_cookie,
+                      x_cache,
+                      x_cache_hits,
+                      x_connection_hash, 
+                      x_timer,
+                      x_xss_protection
+                      ]).
