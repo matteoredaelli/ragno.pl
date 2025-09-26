@@ -28,6 +28,7 @@
 :-use_module(library(xpath)).
 :-use_module(library(uri)).
 :-use_module(list_ext).
+:-use_module(uri_ext).
 
 cleanup_string(From, To):-
     re_replace("\\W+", " ", From, To1),
@@ -54,7 +55,7 @@ find_table(DOM, N, Table):-
 extract_link(DOM, Url, Link):-
     xpath(DOM, //a(@href=HREF0, text), _Title),
     uri_normalized(HREF0, Url, LinkWithFragment),
-    uri_without_fragment(LinkWithFragment, Link).
+    uri_ext:uri_without_fragment(LinkWithFragment, Link).
 
 extract_all_links(DOM, Url, Links):-
     setof(Link, extract_link(DOM, Url, Link), Links).

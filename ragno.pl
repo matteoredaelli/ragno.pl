@@ -19,6 +19,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+:- module(ragno,
+[
+    crawl_domain/2,
+    crawl_domains/2
+]).
+
 :- use_module(library(http/http_open)).
 :- use_module(library(http/http_client)).
 :- use_module(library(http/json)).
@@ -38,7 +45,7 @@
 main(Argv):-
     config:dbname(DBname),
     db:open(DBname),
-    crawl_domains(Argv).
+    crawl_domains(Argv,_).
 
 ragno_http_options(MyOptions, HttpOptions):-
     %% [final_url(FinalUrl), headers(Headers)]
@@ -69,72 +76,77 @@ setup_call_cleanup(
 %% 	  FinalUrl = none).
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
-get_html_page(Url, FinalUrl, AllHeaders, DOM),
-removed_http_headers(HeadersToBeRemoved),
-list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
-html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
-%% filter http or https uris
-include(uri_ext:is_http_uri, Links, HttpLinks).
+    get_html_page(Url, FinalUrl, AllHeaders, DOM),
+    removed_http_headers(HeadersToBeRemoved),
+    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+    html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
+    %% filter http or https uris
+    include(uri_ext:is_http_uri, Links, HttpLinks).
 
-%% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
-%%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
-%% 	  Err,
-%% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
+    %% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
+    %%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
+    %% 	  Err,
+    %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
 
 crawl_url(Url, Data):-
-uri_ext:uri_domain(Url, Domain),
-get_time(Timestamp),
-Data01 = domain{url:Url,
-                ragno_status:starting,
-                ragno_ts:Timestamp,
-                domain:Domain},
-db:put(Domain, Data01),
-get_html_page(Url, FinalUrl, AllHeaders, DOM),
-uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
-removed_http_headers(HeadersToBeRemoved),
-list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
-headers_ext:headers_to_dict(Headers, HeadersDict),
-put_dict(domain{ragno_status: headers,
-                final_domain:FinalDomain,
-                final_url:FinalUrl,
-                headers:HeadersDict
-                }, Data01, Data02),
-db:put(Domain, Data02),
-html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
-%% filter http or https uris
-include(uri_ext:is_http_uri, AllLinks, HttpLinks),
-%% remove finalUrl from links
-select(FinalUrl, HttpLinks, Links),
-uri_ext:uris_domains(Links, Domains),
-%% split external and internal links
-split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
-put_dict(domain{ragno_status: done,
-                domains:Domains,
-                internalLinks:SameDomainLinks,
-                externalLinks:ExternalLinks},
-            Data02, Data03),
-db:put(Domain, Data03),
-tagger:tags_from_headers(Headers, Tags),
-tagger:social_tags_from_links(SocialTags, ExternalLinks),
-once(
-    html_ext:safe_extract_text(DOM, //head/title(text), Title) ;
-    xpath(DOM, //meta(@name=title, @content=Title), _) ;
-    Title = ""),
-once(
-    xpath(DOM, //meta(@name=description, @content=Description), _) ;
-    xpath(DOM, //meta(@property='og:description', @content=Description), _) ; 
-    Description = ""),
-put_dict(domain{ragno_status: done,
-                html_title:Title,
-                html_description:Description,
-                tags:Tags,
-                social_tags:SocialTags},
-        Data03, Data),
+    uri_ext:uri_domain(Url, Domain),
+    get_time(Timestamp),
+    Data01 = domain{url:Url,
+                    ragno_status:starting,
+                    ragno_ts:Timestamp,
+                    domain:Domain,
+                    domains:[]},
+    db:put(Domain, Data01),
+    get_html_page(Url, FinalUrl, AllHeaders, DOM),
+    uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
+    removed_http_headers(HeadersToBeRemoved),
+    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+    headers_ext:headers_to_dict(Headers, HeadersDict),
+    put_dict(domain{ragno_status: headers,
+                    final_domain:FinalDomain,
+                    final_url:FinalUrl,
+                    headers:HeadersDict
+                    }, Data01, Data02),
+    db:put(Domain, Data02),
+    html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
+    %% filter http or https uris
+    include(uri_ext:is_http_uri, AllLinks, HttpLinks),
+    %% remove finalUrl from links
+    select(FinalUrl, HttpLinks, Links),
+    uri_ext:uris_domains(Links, DirtyDomains),
+    maplist(uri_ext:www_without_numbers, DirtyDomains, Domains),
+    %% split external and internal links
+    split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
+    put_dict(domain{ragno_status: done,
+                    domains:Domains,
+                    internalLinks:SameDomainLinks,
+                    externalLinks:ExternalLinks},
+                    Data02, Data03),
+    db:put(Domain, Data03),
+    tagger:tags_from_headers(Headers, Tags),
+    tagger:social_tags_from_links(SocialTags, ExternalLinks),
+    once(
+        html_ext:safe_extract_text(DOM, //head/title(text), Title) ;
+        xpath(DOM, //meta(@name=title, @content=Title), _) ;
+        Title = ""),
+    once(
+        xpath(DOM, //meta(@name=description, @content=Description), _) ;
+        xpath(DOM, //meta(@property='og:description', @content=Description), _) ; 
+        Description = ""),
+    once(xpath(DOM, //meta(@property='og:type', @content=OgType), _) ; OgType = ""),
+    put_dict(domain{ragno_status: done,
+                    html_title:Title,
+                    html_description:Description,
+                    og_type:OgType,
+                    tags:Tags,
+                    social_tags:SocialTags},
+            Data03, Data),
     db:put(Domain, Data).
 
-crawl_domains([]).
-crawl_domains([Domain|Domains]):-
+crawl_domain(Domain, Data):-
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
     crawl_url(Url, Data),
-    db:put(Domain, Data),
-    crawl_domains(Domains).
+    db:put(Domain, Data).
+
+crawl_domains(Domains, Results):-
+    maplist(crawl_domain, Domains, Results).

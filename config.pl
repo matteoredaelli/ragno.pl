@@ -25,7 +25,7 @@
     removed_http_headers/1
 ]).
 
-dbname("ragnodb").
+dbname("data/ragnodb").
 
 http_options( [redirect(true),
 		   timeout(4),

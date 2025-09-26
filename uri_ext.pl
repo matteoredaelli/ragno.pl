@@ -23,6 +23,8 @@
 	      uris_domains/2,
 	      level2_domain/2,
 	      is_http_uri/1,
+	      remove_www/2,
+	      www_without_numbers/2,
 	      split_links/4,
 	      uri_without_fragment/2
 	  ]).
@@ -91,3 +93,9 @@ split_links(Links, Domain, SameDomainLinks, ExternalLinks):-
     include([X]>> (member(X,Links), same_domain_link(X,Domain)), Links, SameDomainLinks),
     subtract(Links, SameDomainLinks, ExternalLinks).
     
+
+www_without_numbers(FromUrl, ToUrl):-
+    re_replace("^www\\d*\\.", "www.", FromUrl, ToUrl).
+
+remove_www(FromUrl, ToUrl):-
+    re_replace("^www\\d*\\.", "", FromUrl, ToUrl).
