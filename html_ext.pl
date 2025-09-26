@@ -19,6 +19,7 @@
 */
 
 :- module(html_ext, [
+	      safe_extract_text/3,
 	      safe_extract_all_links/3,
 	      extract_table_to_list_of_list/2,
 	      find_table/3
@@ -27,6 +28,11 @@
 :-use_module(library(xpath)).
 :-use_module(library(uri)).
 :-use_module(list_ext).
+
+cleanup_string(From, To):-
+    re_replace("\\W+", " ", From, To1),
+    re_replace("^\\W+", "", To1, To2),
+    re_replace("\\W+$", "", To2, To).
 
 extract_value_from_dom(element(_, _, [Value]), Value).
 
@@ -57,5 +63,11 @@ safe_extract_all_links(DOM, Url, Links):-
     catch(extract_all_links(DOM, Url, Links),
 			ExTerm, (format("Exception: ~q\n",[ExTerm]), Links = [])).
 
-safe_extract_title(DOM, Title):-
-    xpath(DOM, //head/title(text), Title) ; Title = "".
+%%safe_extract_title(DOM, Title):-
+%%    xpath(DOM, //head/title(text), Title) ; Title = "".
+
+safe_extract_content(DOM, Filter, Text):-
+    xpath(DOM, Filter=Text, _Text) ; Text = "".
+safe_extract_text(DOM, Filter, Text):-
+    (xpath(DOM, Filter, Text0) ; Text0 = ""),
+    cleanup_string(Text0, Text).

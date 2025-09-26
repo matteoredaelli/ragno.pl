@@ -33,10 +33,12 @@ http_options( [redirect(true),
 		   cert_verify_hook(cert_accept_any),
 		   user_agent("Ragno.pl/0.1")]).
 
-removed_http_headers([alt_svc,
+removed_http_headers([accept_ranges,
+                      alt_svc,
                       cache_control,
                       content_security_policy,
                       etag,
+                      expires,
                       reporting_endpoints,
                       strict_transport_security,
                       set_cookie,

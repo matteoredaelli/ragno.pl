@@ -47,16 +47,16 @@ ragno_http_options(MyOptions, HttpOptions):-
     merge_options(MyOptions, HttpDefaultOptions, HttpOptions).
 
 get_http_page_info(Url, FinalUrl, Headers):-
-    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
-    http_open(Url, In, HttpOptions),
-    close(In).
+ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
+http_open(Url, In, HttpOptions),
+close(In).
 
 get_html_page(Url, FinalUrl, Headers, DOM):-
-    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
-    setup_call_cleanup(
-	    http_open(Url, In, HttpOptions),
-	    load_html(In, DOM, []),
-        close(In)).
+ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
+setup_call_cleanup(
+    http_open(Url, In, HttpOptions),
+    load_html(In, DOM, []),
+    close(In)).
 
 %% get_final_url(Url, FinalUrl):-
 %%     ragno_http_options([final_url(FinalUrl)], HttpOptions),
@@ -69,57 +69,67 @@ get_html_page(Url, FinalUrl, Headers, DOM):-
 %% 	  FinalUrl = none).
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
-    get_html_page(Url, FinalUrl, AllHeaders, DOM),
-    removed_http_headers(HeadersToBeRemoved),
-    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
-    html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
-    %% filter http or https uris
-    include(uri_ext:is_http_uri, Links, HttpLinks).
+get_html_page(Url, FinalUrl, AllHeaders, DOM),
+removed_http_headers(HeadersToBeRemoved),
+list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
+%% filter http or https uris
+include(uri_ext:is_http_uri, Links, HttpLinks).
 
 %% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
 %%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
-    
+
 crawl_url(Url, Data):-
-    uri_ext:uri_domain(Url, Domain),
-    get_time(Timestamp),
-    Data01 = domain{url:Url, 
-                    ragno_status:starting,
-                    ragno_ts:Timestamp,
-                    domain:Domain},
-    db:put(Domain, Data01),
-    get_html_page(Url, FinalUrl, AllHeaders, DOM),
-    uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
-    removed_http_headers(HeadersToBeRemoved),
-    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
-    headers_ext:headers_to_dict(Headers, HeadersDict),
-    put_dict(domain{ragno_status: headers, 
-                    final_domain:FinalDomain,
-                    final_url:FinalUrl,
-                    headers:HeadersDict
-                    }, Data01, Data02),
-    db:put(Domain, Data02),
-    html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
-    %% filter http or https uris
-    include(uri_ext:is_http_uri, AllLinks, HttpLinks),
-    %% remove finalUrl from links
-    select(FinalUrl, HttpLinks, Links),
-    uri_ext:uris_domains(Links, Domains),
-    %% split external and internal links
-    split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
-    put_dict(domain{ragno_status: done, 
-                    domains:Domains,
-                    internalLinks:SameDomainLinks,
-                    externalLinks:ExternalLinks},
-             Data02, Data03),
-    db:put(Domain, Data03),
-    tagger:tags_from_headers(Headers, Tags),
-    tagger:social_tags_from_links(SocialTags, ExternalLinks),
-    put_dict(domain{ragno_status: done, 
-                    tags:Tags,
-                    social_tags:SocialTags},
-             Data03, Data),
+uri_ext:uri_domain(Url, Domain),
+get_time(Timestamp),
+Data01 = domain{url:Url,
+                ragno_status:starting,
+                ragno_ts:Timestamp,
+                domain:Domain},
+db:put(Domain, Data01),
+get_html_page(Url, FinalUrl, AllHeaders, DOM),
+uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
+removed_http_headers(HeadersToBeRemoved),
+list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+headers_ext:headers_to_dict(Headers, HeadersDict),
+put_dict(domain{ragno_status: headers,
+                final_domain:FinalDomain,
+                final_url:FinalUrl,
+                headers:HeadersDict
+                }, Data01, Data02),
+db:put(Domain, Data02),
+html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
+%% filter http or https uris
+include(uri_ext:is_http_uri, AllLinks, HttpLinks),
+%% remove finalUrl from links
+select(FinalUrl, HttpLinks, Links),
+uri_ext:uris_domains(Links, Domains),
+%% split external and internal links
+split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
+put_dict(domain{ragno_status: done,
+                domains:Domains,
+                internalLinks:SameDomainLinks,
+                externalLinks:ExternalLinks},
+            Data02, Data03),
+db:put(Domain, Data03),
+tagger:tags_from_headers(Headers, Tags),
+tagger:social_tags_from_links(SocialTags, ExternalLinks),
+once(
+    html_ext:safe_extract_text(DOM, //head/title(text), Title) ;
+    xpath(DOM, //meta(@name=title, @content=Title), _) ;
+    Title = ""),
+once(
+    xpath(DOM, //meta(@name=description, @content=Description), _) ;
+    xpath(DOM, //meta(@property='og:description', @content=Description), _) ; 
+    Description = ""),
+put_dict(domain{ragno_status: done,
+                html_title:Title,
+                html_description:Description,
+                tags:Tags,
+                social_tags:SocialTags},
+        Data03, Data),
     db:put(Domain, Data).
 
 crawl_domains([]).
