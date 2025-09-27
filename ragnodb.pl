@@ -49,9 +49,8 @@ add_new_domains_if_missing(Domains):-
 
 get_domain_and_add_new_domains():-
     db:enum(_K,Data),
-    WWWDomains = Data.domains,
+    Domains = Data.domains,
     "done" == Data.ragno_status,
-    maplist(uri_ext:remove_www, WWWDomains, Domains),
     add_new_domains_if_missing(Domains).
 
 find_and_add_new_domains():-

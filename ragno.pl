@@ -47,16 +47,27 @@ ragno_http_options(MyOptions, HttpOptions):-
     merge_options(MyOptions, HttpDefaultOptions, HttpOptions).
 
 get_http_page_info(Url, FinalUrl, Headers):-
-ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
-http_open(Url, In, HttpOptions),
-close(In).
+    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
+    http_open(Url, In, HttpOptions),
+    close(In).
+
+crawl_url_with_redirect_to_other_domain(Url, Domain, DataIn, DataOut):-
+    get_http_page_info(Url, FinalUrl, _Headers),
+    uri_ext:uri_domain(FinalUrl, FinalDomain),
+    Domain \= FinalDomain,
+    put_dict(domain{ragno_status: done,
+                    final_url:FinalUrl,
+                    final_domain:FinalDomain,
+                    domains:[FinalDomain],
+                    headers:_{}
+                    }, DataIn, DataOut).
 
 get_html_page(Url, FinalUrl, Headers, DOM):-
-ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
-setup_call_cleanup(
-    http_open(Url, In, HttpOptions),
-    load_html(In, DOM, []),
-    close(In)).
+    ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
+    setup_call_cleanup(
+        http_open(Url, In, HttpOptions),
+        load_html(In, DOM, []),
+        close(In)).
 
 %% get_final_url(Url, FinalUrl):-
 %%     ragno_http_options([final_url(FinalUrl)], HttpOptions),
@@ -81,15 +92,7 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     %% 	  Err,
     %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
 
-crawl_url(Url, Data):-
-    uri_ext:uri_domain(Url, Domain),
-    get_time(Timestamp),
-    Data01 = domain{url:Url,
-                    ragno_status:starting,
-                    ragno_ts:Timestamp,
-                    domain:Domain,
-                    domains:[]},
-    db:put(Domain, Data01),
+crawl_url(Url, Domain, DataIn, DataOut):-
     get_html_page(Url, FinalUrl, AllHeaders, DOM),
     uri_components(FinalUrl, uri_components(_, FinalDomain, _, _, _)),
     removed_http_headers(HeadersToBeRemoved),
@@ -99,7 +102,7 @@ crawl_url(Url, Data):-
                     final_domain:FinalDomain,
                     final_url:FinalUrl,
                     headers:HeadersDict
-                    }, Data01, Data02),
+                    }, DataIn, Data02),
     db:put(Domain, Data02),
     html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
     %% filter http or https uris
@@ -110,7 +113,7 @@ crawl_url(Url, Data):-
     maplist(uri_ext:www_without_numbers, DirtyDomains, Domains),
     %% split external and internal links
     split_links(Links, FinalDomain, SameDomainLinks, ExternalLinks),
-    put_dict(domain{ragno_status: done,
+    put_dict(domain{ragno_status: domains,
                     domains:Domains,
                     internalLinks:SameDomainLinks,
                     externalLinks:ExternalLinks},
@@ -133,13 +136,36 @@ crawl_url(Url, Data):-
                     og_type:OgType,
                     tags:Tags,
                     social_tags:SocialTags},
-            Data03, Data),
-    db:put(Domain, Data).
+            Data03, DataOut),
+    db:put(Domain, DataOut).
 
-crawl_domain(Domain, Data):-
+once_crawl_url(Url, Domain, DataIn, DataOut):-
+    once(
+        crawl_url_with_redirect_to_other_domain(Url, Domain, DataIn, DataOut) ;
+        crawl_url(Url, Domain, DataIn, DataOut)
+    ).
+
+crawl_domain(Domain, DataOut):-
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
-    crawl_url(Url, Data),
-    db:put(Domain, Data).
+    get_time(Timestamp),
+    DataIn = domain{url:Url,
+                    ragno_status:starting,
+                    ragno_ts:Timestamp,
+                    domain:Domain,
+                    domains:[]},
+    db:put(Domain, DataIn),
+    catch(
+        once_crawl_url(Url, Domain, DataIn, DataOut),
+		ExTerm, 
+        (
+            format("Exception: ~q\n",[ExTerm]),
+            term_to_atom(ExTerm, ExString),
+            put_dict(domain{ragno_status: error,
+                            error_message:ExString},
+                            DataIn, DataOut)
+        )
+    ),
+    db:put(Domain, DataOut).
 
 crawl_domains(Domains, Results):-
     maplist(crawl_domain, Domains, Results).

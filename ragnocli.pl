@@ -20,6 +20,7 @@
 */
 
 :- use_module(ragno).
+:- use_module(ragnodb).
 :- use_module(config).
 :- use_module(db).
 
@@ -28,4 +29,16 @@
 main(Argv):-
     config:dbname(DBname),
     db:open(DBname),
+    once(ragnocli(Argv)).
+
+ragnocli([crawl|Argv]):-
     ragno:crawl_domains(Argv,_).
+
+ragnocli([new_domains|_Argv]):-
+    ragnodb:find_and_add_new_domains().
+
+ragnocli([run|_Argv]):-
+    ragnodb:find_todo_domains_and_crawl().
+
+ragnocli(_):-
+    writeln(["ragnocli crawl|run"]).
