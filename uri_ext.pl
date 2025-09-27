@@ -19,15 +19,15 @@
 */
 
 :- module(uri_ext, [
-	      uri_domain/2,
-	      uris_domains/2,
-	      level2_domain/2,
-	      is_http_uri/1,
-	      remove_www/2,
-	      www_without_numbers/2,
-	      split_links/4,
-	      uri_without_fragment/2
-	  ]).
+              uri_domain/2,
+              uris_domains/2,
+              level2_domain/2,
+              is_http_uri/1,
+              remove_www/2,
+              www_without_numbers/2,
+              split_links/4,
+              uri_without_fragment/2
+                   ]).
 
 :- use_module(library(uri)).
 :- use_module(library(apply)).
@@ -41,7 +41,7 @@ uri_domain(Uri, Domain):-
 
 uris_domains(Uris, Domains):-
     convlist([Uri, Domain]>>uri_domain(Uri, Domain), Uris, DomainsList),
-    setof(X, member(X,DomainsList), Domains).    
+    setof(X, member(X, DomainsList), Domains).
 
 same_domain(Uri1, Uri2):-
     uri_domain(Uri1, Domain),
@@ -77,22 +77,22 @@ convert a domain like 'www.redaelli.org' to 'redaelli.org'
 level2_domain(Domain, Domain2):-
     atom_string(Domain, DomainString),
     split_string(DomainString, ".", "", DomainList),
-    reverse(DomainList, [D1,D2|_L]), 
+    reverse(DomainList, [D1, D2|_L]),
     atomic_list_concat([D2, '.', D1], Domain2String),
     atom_string(Domain2, Domain2String).
 
 level2_domains(Domain1List, Domain2Set):-
     convlist([Domain1, Domain2]>>level2_domain(Domain1, Domain2), Domain1List, Domain2List),
-    setof(X, member(X,Domain2List), Domain2Set).    
+    setof(X, member(X, Domain2List), Domain2Set).
 
 is_http_uri(Url):-
     uri_components(Url, uri_components(https, _DomainPort, _Path, _Params, _)) ;
     uri_components(Url, uri_components(http, _DomainPort, _Path, _Params, _)).
 
 split_links(Links, Domain, SameDomainLinks, ExternalLinks):-
-    include([X]>> (member(X,Links), same_domain_link(X,Domain)), Links, SameDomainLinks),
+    include([X]>> (member(X, Links), same_domain_link(X, Domain)), Links, SameDomainLinks),
     subtract(Links, SameDomainLinks, ExternalLinks).
-    
+
 
 www_without_numbers(FromUrl, ToUrl):-
     re_replace("^www\\d*\\.", "www.", FromUrl, ToUrl).

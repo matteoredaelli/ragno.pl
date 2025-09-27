@@ -1,4 +1,3 @@
-% -*- Mode: Prolog -*-
 /*
     ragno: a light spider written in (swi)prolog for crawling root web sites
 
@@ -22,22 +21,28 @@
 :- use_module(ragnodb).
 :- use_module(config).
 :- use_module(db).
+:- use_module(threadpool).
 
 :- initialization(main, main).
 
 main(Argv):-
     config:dbname(DBname),
     db:open(DBname),
+    threadpool:create_thread_pool(1),
     once(ragnocli(Argv)).
+%    threadpool:shutdown_thread_pool.
 
 ragnocli([crawl|Argv]):-
-    crawler:crawl_domains(Argv,_).
+    crawler:crawl_domains(Argv, _).
 
 ragnocli([find_domains|_Argv]):-
-    ragnodb:find_and_add_new_domains().
+    ragnodb:full_scan_add_new_domains.
+
+ragnocli([domains|_Argv]):-
+    ragnodb:full_scan_domain_name.
 
 ragnocli([run|_Argv]):-
-    ragnodb:find_todo_domains_and_crawl().
+    ragnodb:full_scan_todo_domains_and_crawl.
 
 ragnocli(_):-
-writeln(["ragnocli crawl|run|find_domains"]).
+    writeln(["ragnocli crawl|domains|find_domains|run"]).

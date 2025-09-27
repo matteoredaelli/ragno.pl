@@ -2,6 +2,10 @@
 
 ragno.pl is a light crawler written in (SWI) Prolog
 
+## REQUIREMENTS
+
+swipl pack install lsp_server
+
 ## USAGE
 
 Start with one or more domains to be used as "seeds".

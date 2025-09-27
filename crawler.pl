@@ -21,10 +21,10 @@
 
 
 :- module(crawler,
-[
-    crawl_domain/2,
-    crawl_domains/2
-]).
+          [
+              crawl_domain/2,
+              crawl_domains/2
+          ]).
 
 :- use_module(library(http/http_open)).
 :- use_module(library(http/http_client)).
@@ -60,7 +60,7 @@ crawl_url_with_redirect_to_other_domain(Url, Domain, DataIn, DataOut):-
                     final_domain:FinalDomain,
                     domains:[FinalDomain],
                     headers:_{}
-                    }, DataIn, DataOut).
+    }, DataIn, DataOut).
 
 get_html_page(Url, FinalUrl, Headers, DOM):-
     ragno_http_options([method(get), final_url(FinalUrl), headers(Headers)], HttpOptions),
@@ -87,10 +87,10 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     %% filter http or https uris
     include(uri_ext:is_http_uri, Links, HttpLinks).
 
-    %% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
-    %%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
-    %% 	  Err,
-    %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
+%% safe_crawl_html_page(Url, FinalUrl, Headers, HttpLinks, Err),
+%%     catch((crawl_html_page(Url, FinalUrl, Headers, HttpLinks), Err = none),
+%% 	  Err,
+%% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
 
 crawl_url(Url, Domain, DataIn, DataOut):-
     get_html_page(Url, FinalUrl, AllHeaders, DOM),
@@ -102,7 +102,7 @@ crawl_url(Url, Domain, DataIn, DataOut):-
                     final_domain:FinalDomain,
                     final_url:FinalUrl,
                     headers:HeadersDict
-                    }, DataIn, Data02),
+    }, DataIn, Data02),
     db:put(Domain, Data02),
     html_ext:safe_extract_all_links(DOM, FinalUrl, AllLinks),
     %% filter http or https uris
@@ -117,7 +117,7 @@ crawl_url(Url, Domain, DataIn, DataOut):-
                     domains:Domains,
                     internalLinks:SameDomainLinks,
                     externalLinks:ExternalLinks},
-                    Data02, Data03),
+             Data02, Data03),
     db:put(Domain, Data03),
     tagger:tags_from_headers(Headers, Tags),
     tagger:social_tags_from_links(SocialTags, ExternalLinks),
@@ -127,7 +127,7 @@ crawl_url(Url, Domain, DataIn, DataOut):-
         Title = ""),
     once(
         xpath(DOM, //meta(@name=description, @content=Description), _) ;
-        xpath(DOM, //meta(@property='og:description', @content=Description), _) ; 
+        xpath(DOM, //meta(@property='og:description', @content=Description), _) ;
         Description = ""),
     once(xpath(DOM, //meta(@property='og:type', @content=OgType), _) ; OgType = ""),
     put_dict(domain{ragno_status: done,
@@ -136,7 +136,7 @@ crawl_url(Url, Domain, DataIn, DataOut):-
                     og_type:OgType,
                     tags:Tags,
                     social_tags:SocialTags},
-            Data03, DataOut),
+             Data03, DataOut),
     db:put(Domain, DataOut).
 
 once_crawl_url(Url, Domain, DataIn, DataOut):-
@@ -146,6 +146,7 @@ once_crawl_url(Url, Domain, DataIn, DataOut):-
     ).
 
 crawl_domain(Domain, DataOut):-
+    format("Crawling domain ~q\n", [Domain]),
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
     get_time(Timestamp),
     DataIn = domain{url:Url,
@@ -156,13 +157,13 @@ crawl_domain(Domain, DataOut):-
     db:put(Domain, DataIn),
     catch(
         once_crawl_url(Url, Domain, DataIn, DataOut),
-		ExTerm, 
+        ExTerm,
         (
-            format("Exception: ~q\n",[ExTerm]),
+            format("Exception: ~q\n", [ExTerm]),
             term_to_atom(ExTerm, ExString),
             put_dict(domain{ragno_status: error,
                             error_message:ExString},
-                            DataIn, DataOut)
+                     DataIn, DataOut)
         )
     ),
     db:put(Domain, DataOut).

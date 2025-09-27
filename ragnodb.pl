@@ -20,14 +20,16 @@
 */
 
 :- module(ragnodb,
-[
-    find_and_add_new_domains/0,
-    find_todo_domains_and_crawl/0
-]).
+          [
+              full_scan_add_new_domains/0,
+              full_scan_domain_name/0,
+              full_scan_todo_domains_and_crawl/0
+          ]).
 
 :- use_module(library(apply)).
 :- use_module(crawler).
 :- use_module(db).
+:- use_module(threadpool).
 :- use_module(uri_ext).
 
 add_new_domain(Domain):-
@@ -43,24 +45,34 @@ add_new_domain_if_missing(Domain):-
     once(
         db:get(Domain, _Data) ;
         add_new_domain(Domain)).
-        
+
 add_new_domains_if_missing(Domains):-
     maplist(add_new_domain_if_missing, Domains).
 
-get_domain_and_add_new_domains():-
-    db:enum(_K,Data),
+scan_add_new_domains:-
+    db:enum(_K, Data),
     Domains = Data.domains,
     "done" == Data.ragno_status,
+    %    threadpool:submit_task(ragnodb:add_new_domains_if_missing(Domains)).
     add_new_domains_if_missing(Domains).
 
-find_and_add_new_domains():-
-    findall(_, get_domain_and_add_new_domains, _).
+full_scan_add_new_domains:-
+    findall(_, scan_add_new_domains, _).
 
-get_todo_domain_and_crawl():-
+scan_todo_domain_and_crawl:-
     db:enum(Domain, Data),
     "todo" == Data.ragno_status,
-    writeln(["Crawling domain", Domain]),
-    crawler:crawl_domain(Domain,_).
+    %%format("Submitting domain ~q\n", [Domain]),
+    crawler:crawl_domain(Domain, _).
+%    threadpool:submit_task(crawler:crawl_domain(Domain, _)).
 
-find_todo_domains_and_crawl():-
-    findall(_, get_todo_domain_and_crawl, _).
+full_scan_todo_domains_and_crawl:-
+    findall(_, scan_todo_domain_and_crawl, _).
+
+scan_domain_name:-
+    db:enum(Domain, _Data),
+    %    "error" \= Data.ragno_status,
+    writeln(Domain).
+
+full_scan_domain_name:-
+    findall(_, scan_domain_name, _).

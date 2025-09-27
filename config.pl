@@ -19,19 +19,19 @@
 */
 
 :- module(config,
-[
-    dbname/1,
-    http_options/1,
-    removed_http_headers/1
-]).
+          [
+              dbname/1,
+              http_options/1,
+              removed_http_headers/1
+          ]).
 
 dbname("data/ragnodb").
 
 http_options( [redirect(true),
-		   timeout(8),
-		   %% proxy(proxy.local:80),
-		   cert_verify_hook(cert_accept_any),
-		   user_agent("Ragno.pl/0.1")]).
+               timeout(8),
+               %% proxy(proxy.local:80),
+               cert_verify_hook(cert_accept_any),
+               user_agent("Ragno.pl/0.1")]).
 
 removed_http_headers([accept_ranges,
                       alt_svc,
@@ -44,7 +44,11 @@ removed_http_headers([accept_ranges,
                       set_cookie,
                       x_cache,
                       x_cache_hits,
-                      x_connection_hash, 
+                      x_connection_hash,
                       x_timer,
                       x_xss_protection
-                      ]).
+                     ]).
+
+exclude_domains([
+                    porn-"porn|sex|xxx|sesso"
+                ]).

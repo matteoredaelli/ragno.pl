@@ -19,11 +19,11 @@
 */
 
 :- module(html_ext, [
-	      safe_extract_text/3,
-	      safe_extract_all_links/3,
-	      extract_table_to_list_of_list/2,
-	      find_table/3
-	  ]).
+              safe_extract_text/3,
+              safe_extract_all_links/3,
+              extract_table_to_list_of_list/2,
+              find_table/3
+                    ]).
 
 :-use_module(library(xpath)).
 :-use_module(library(uri)).
@@ -38,19 +38,19 @@ cleanup_string(From, To):-
 extract_value_from_dom(element(_, _, [Value]), Value).
 
 findall_table_th(DOM, Texts):-
-	findall(Texts, xpath(DOM, //tr/th(text), Texts), Texts).
+    findall(Texts, xpath(DOM, //tr/th(text), Texts), Texts).
 
 findall_table_td(DOM, Texts):-
-	findall(Texts, xpath(DOM, //td(text), Texts), Texts).
+    findall(Texts, xpath(DOM, //td(text), Texts), Texts).
 
 extract_table_to_list_of_list(DOM, [Header, ListOfRowLists]):-
-	findall_table_th(DOM, Header),
-	length(Header, N),
-	findall_table_td(DOM, FlatList),
-	list_ext:groupN(N, FlatList, ListOfRowLists).
+    findall_table_th(DOM, Header),
+    length(Header, N),
+    findall_table_td(DOM, FlatList),
+    list_ext:groupN(N, FlatList, ListOfRowLists).
 
 find_table(DOM, N, Table):-
-	xpath(DOM, //table(N), Table).
+    xpath(DOM, //table(N), Table).
 
 extract_link(DOM, Url, Link):-
     xpath(DOM, //a(@href=HREF0, text), _Title),
@@ -62,7 +62,7 @@ extract_all_links(DOM, Url, Links):-
 
 safe_extract_all_links(DOM, Url, Links):-
     catch(extract_all_links(DOM, Url, Links),
-			ExTerm, (format("Exception: ~q\n",[ExTerm]), Links = [])).
+          ExTerm, (format("Exception: ~q\n", [ExTerm]), Links = [])).
 
 %%safe_extract_title(DOM, Title):-
 %%    xpath(DOM, //head/title(text), Title) ; Title = "".
