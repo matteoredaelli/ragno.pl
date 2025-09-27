@@ -28,7 +28,7 @@
 dbname("data/ragnodb").
 
 http_options( [redirect(true),
-		   timeout(4),
+		   timeout(8),
 		   %% proxy(proxy.local:80),
 		   cert_verify_hook(cert_accept_any),
 		   user_agent("Ragno.pl/0.1")]).

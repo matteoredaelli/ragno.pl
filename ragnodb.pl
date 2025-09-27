@@ -26,7 +26,7 @@
 ]).
 
 :- use_module(library(apply)).
-:- use_module(ragno).
+:- use_module(crawler).
 :- use_module(db).
 :- use_module(uri_ext).
 
@@ -60,7 +60,7 @@ get_todo_domain_and_crawl():-
     db:enum(Domain, Data),
     "todo" == Data.ragno_status,
     writeln(["Crawling domain", Domain]),
-    ragno:crawl_domain(Domain,_).
+    crawler:crawl_domain(Domain,_).
 
 find_todo_domains_and_crawl():-
     findall(_, get_todo_domain_and_crawl, _).
