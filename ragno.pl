@@ -40,13 +40,6 @@
 :- use_module(tagger).
 :- use_module(uri_ext).
 
-:- initialization(main, main).
-
-main(Argv):-
-    config:dbname(DBname),
-    db:open(DBname),
-    crawl_domains(Argv,_).
-
 ragno_http_options(MyOptions, HttpOptions):-
     %% [final_url(FinalUrl), headers(Headers)]
     %% collapse_options(MergedHttpOptions, FinalHttpOptions),

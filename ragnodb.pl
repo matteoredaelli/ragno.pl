@@ -21,16 +21,17 @@
 
 :- module(ragnodb,
 [
-    find_and_add_new_domains/0
+    find_and_add_new_domains/0,
+    find_todo_domains_and_crawl/0
 ]).
 
 :- use_module(library(apply)).
-:- use_module(config).
+:- use_module(ragno).
 :- use_module(db).
 :- use_module(uri_ext).
 
 add_new_domain(Domain):-
-    writeln(["Adding domain ", Domain]),
+    writeln(["Adding domain", Domain]),
     get_time(Timestamp),
     Data = domain{ragno_status:todo,
                   ragno_ts:Timestamp,
@@ -55,3 +56,12 @@ get_domain_and_add_new_domains():-
 
 find_and_add_new_domains():-
     findall(_, get_domain_and_add_new_domains, _).
+
+get_todo_domain_and_crawl():-
+    db:enum(Domain, Data),
+    "todo" == Data.ragno_status,
+    writeln(["Crawling domain", Domain]),
+    ragno:crawl_domain(Domain,_).
+
+find_todo_domains_and_crawl():-
+    findall(_, get_todo_domain_and_crawl, _).
