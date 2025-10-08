@@ -22,10 +22,11 @@
 :- module(ragnodb,
           [
               full_scan_add_new_domains/0,
-              full_scan_domain_name/0,
+              dump/1,
               full_scan_todo_domains_and_crawl/0
           ]).
 
+:- use_module(library(http/json)).
 :- use_module(library(apply)).
 :- use_module(crawler).
 :- use_module(db).
@@ -39,11 +40,11 @@ add_new_domain(Domain):-
                   ragno_ts:Timestamp,
                   domain:Domain,
                   domains:[]},
-    db:put(Domain, Data).
+    db:put(domain, Domain, Data).
 
 add_new_domain_if_missing(Domain):-
     once(
-        db:get(Domain, _Data) ;
+        db:get(domain, Domain, _Data) ;
         add_new_domain(Domain)).
 
 add_new_domains_if_missing(Domains):-
@@ -52,7 +53,7 @@ add_new_domains_if_missing(Domains):-
     maplist(add_new_domain_if_missing, FilteredDomains).
 
 scan_add_new_domains:-
-    db:enum(_K, Data),
+    db:enum(domain, _K, Data),
     Domains = Data.domains,
     "done" == Data.ragno_status,
     %    config:threadpool_size(S),
@@ -64,24 +65,24 @@ full_scan_add_new_domains:-
     findall(_, scan_add_new_domains, _).
 
 scan_todo_domain_and_crawl:-
-    db:enum(Domain, Data),
+    db:enum(domain, Domain, Data),
     "todo" == Data.ragno_status,
     %%format("Submitting domain ~q\n", [Domain]),
-%    crawler:crawl_domain(Domain, _).
+%    crawler:crawl_domain(Domain).
     config:threadpool_size(S),
     (S > 0 ->
-         threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Domain, _)) ;
-     crawler:crawl_domain(Domain, _)).
+         threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Domain)) ;
+     crawler:crawl_domain(Domain)).
 
 full_scan_todo_domains_and_crawl:-
     findall(_, scan_todo_domain_and_crawl, _),
     sleep(10000).
 
-scan_domain_name:-
-    db:enum(Domain, Data),
+enum_json(DBname):-
+    db:enum(DBname, _K, V),
     %    "error" \= Data.ragno_status,
-    Status = Data.ragno_status,
-    format("~w ~q\n", [Domain, Status]).
+    atom_json_dict(Json, V, []),
+    format("~w\n", [Json]).
 
-full_scan_domain_name:-
-    findall(_, scan_domain_name, _).
+dump(DBname):-
+    findall(_, enum_json(DBname), _).

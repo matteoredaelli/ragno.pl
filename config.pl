@@ -21,7 +21,6 @@
 :- module(config,
           [
               threadpool_size/1,
-              dbname/1,
               http_options/1,
               removed_http_headers/1,
               skip_domains/1
@@ -34,8 +33,6 @@ tld(it).
 tld(net).
 tld(rs).
 tld(org).
-
-dbname("data/ragnodb").
 
 threadpool_size(15).
 

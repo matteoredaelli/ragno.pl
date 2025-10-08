@@ -21,11 +21,11 @@
 :- module(db,
           [
               merge_assocs/3,
-              delete/1,
+              delete/2,
               open/2,
-              put/2,
-              get/2,
-              merge/2
+              put/3,
+              get/3,
+              merge/3
           ]).
 
 :- use_module(library(http/json)).
@@ -33,30 +33,33 @@
 :- use_module(library(pcre)).
 
 open(DBname, Options):-
+    atom_concat('data/', DBname, DBpath),
     append(Options,
-           [alias(mdb),
+           [alias(DBname),
             merge(merge),
-            value(string)], AllOptions),
-    rocks_open(DBname,
+            value(string)
+           ], AllOptions),
+    rocks_open(DBpath,
                _DB,
                AllOptions).
 
-delete(K):-
+delete(DB, K):-
     %  fast_term_serialized(V, Vserialized),
-    rocks_delete(mdb, K).
+    rocks_delete(DB, K).
 
-get(K, V):-
-    rocks_get(mdb, K, Json),
-    atom_json_dict(Json, V, []).
+get(DB, K, V):-
+    rocks_get(DB, K, Vserialized),
+    fast_term_serialized(V, Vserialized).
+%atom_json_dict(Json, V, []).
 
-put(K, V):-
-    atom_json_dict(Json, V, []),
+put(DB, K, V):-
+    fast_term_serialized(V, Vserialized),
+    % atom_json_dict(Json, V, []),
+    rocks_put(DB, K, Vserialized).
+
+merge(DB, K, V):-
     %  fast_term_serialized(V, Vserialized),
-    rocks_put(mdb, K, Json).
-
-merge(K, V):-
-    %  fast_term_serialized(V, Vserialized),
-    rocks_merge(mdb, K, V).
+    rocks_merge(DB, K, V).
 
 merge(partial, _Key, Left, Right, Result) :-
     debug(merge, 'Merge partial ~p ~p', [Left, Right]),
@@ -88,9 +91,10 @@ merge_dict(full, _Key, Initial, Additions, Result) :-
     debug(merge, 'Merge full ~p ~p', [Initial, Additions]),
     put_dict(Additions, Initial, Result).
 
-enum(K, V):-
-    rocks_enum(mdb, K, Json),
-    atom_json_dict(Json, V, []).
+enum(DB, K, V):-
+    rocks_enum(DB, K, Vserialized),
+    fast_term_serialized(V, Vserialized).
+%atom_json_dict(Json, V, []).
 
 all_records(Pairs):-
     findall(K-V, enum(K, V), Pairs).

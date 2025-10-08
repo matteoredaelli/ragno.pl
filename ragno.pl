@@ -25,28 +25,28 @@
 
 :- initialization(main, main).
 
+
 main(Argv):-
-    config:dbname(DBname),
-    config:threadpool_size(S),
-    once(S =< 0 ; threadpool:start_pool(ragnopool, S)),
-    once(ragnocli(DBname, Argv)).
+    once(ragnocli(Argv)).
 %    threadpool:shutdown_thread_pool.
 
-ragnocli(DBname, [crawl|Argv]):-
-    db:open(DBname, [mode(read_write)]),
-    crawler:crawl_domains(Argv, _).
+ragnocli([crawl|Argv]):-
+    config:threadpool_size(S),
+    once(S =< 0 ; threadpool:start_pool(ragnopool, S)),
+    db:open(domain, [mode(read_write)]),
+    db:open(url, [mode(read_write)]),
+    crawler:crawl_domains(Argv).
 
-ragnocli(DBname, [find_domains|_Argv]):-
-    db:open(DBname, [mode(read_write)]),
-    ragnodb:full_scan_add_new_domains.
-
-ragnocli(DBname, [domains|_Argv]):-
+ragnocli([dump, DBname|_Argv]):-
     db:open(DBname, [mode(read_only)]),
-    ragnodb:full_scan_domain_name.
+    ragnodb:dump(DBname).
 
-ragnocli(DBname, [run|_Argv]):-
-    db:open(DBname, [mode(read_write)]),
+ragnocli([run|_Argv]):-
+    config:threadpool_size(S),
+    once(S =< 0 ; threadpool:start_pool(ragnopool, S)),
+    db:open(domain, [mode(read_write)]),
+    db:open(url, [mode(read_write)]),
     ragnodb:full_scan_todo_domains_and_crawl.
 
-ragnocli(_DBname, []):-
-    writeln(["ragnocli crawl|domains|find_domains|run"]).
+ragnocli([]):-
+    writeln(["ragnocli crawl|dump|find_domains|run"]).
