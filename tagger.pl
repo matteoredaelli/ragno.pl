@@ -19,60 +19,60 @@
 */
 
 :- module(tagger, [
-  tags_from_headers/2,
-  social_tag_from_links/2,
-  social_tags_from_links/2,
-  tags_from_values/2
-]).
+              tags_from_headers/2,
+              social_tag_from_links/2,
+              social_tags_from_links/2,
+              tags_from_values/2
+                  ]).
 
 :- use_module(library(uri)).
 :- use_module(headers_ext).
 :- use_module(tags).
 
 tags_from_headers(Headers, Tags):-
-	headers_ext:headers_keys_values(Headers, Keys, Values),
-	atomic_list_concat(Keys, ' ', KeysStr),
-	downcase_atom(KeysStr, KeysStrLower),
-	atomic_list_concat(Values, ' ', ValuesStr),
-	downcase_atom(ValuesStr, ValuesStrLower),
-  all_tags_from_keys(KTags, KeysStrLower),
-  all_tags_from_values(VTags, ValuesStrLower),
-  all_tags_from_h(HTags, Headers),
-  foldl(append, [HTags, VTags, KTags], [], TagsList),
-	list_to_set(TagsList, Tags).
+    headers_ext:headers_keys_values(Headers, Keys, Values),
+    atomic_list_concat(Keys, ' ', KeysStr),
+    downcase_atom(KeysStr, KeysStrLower),
+    atomic_list_concat(Values, ' ', ValuesStr),
+    downcase_atom(ValuesStr, ValuesStrLower),
+    all_tags_from_keys(KTags, KeysStrLower),
+    all_tags_from_values(VTags, ValuesStrLower),
+    all_tags_from_h(HTags, Headers),
+    foldl(append, [HTags, VTags, KTags], [], TagsList),
+    list_to_set(TagsList, Tags).
 
 tags_from_keys(Tags, String):-
-	tags:key_tags(Key, Tags),
-	sub_string(String, _, _, _, Key).
+    tags:key_tags(Key, Tags),
+    sub_string(String, _, _, _, Key).
 
 tags_from_values(Tags, String):-
-	tags:value_tags(Value, Tags),
-	sub_string(String, _, _, _, Value).
+    tags:value_tags(Value, Tags),
+    sub_string(String, _, _, _, Value).
 
 tags_from_h(Tags, Headers):-
-  member(H, Headers),
-	tags:header_tags(H, Tags).
+    member(H, Headers),
+    tags:header_tags(H, Tags).
 
 all_tags_from_h(Tags, Headers):-
-	findall(T, tags_from_h(T, Headers), ListTags),
-	flatten(ListTags, Tags).
+    findall(T, tags_from_h(T, Headers), ListTags),
+    flatten(ListTags, Tags).
 
 all_tags_from_keys(Tags, String):-
-	findall(T, tags_from_keys(T, String), ListTags),
-	flatten(ListTags, Tags).
+    findall(T, tags_from_keys(T, String), ListTags),
+    flatten(ListTags, Tags).
 
 all_tags_from_values(Tags, String):-
-	findall(T, tags_from_values(T, String), ListTags),
-	flatten(ListTags, Tags).
+    findall(T, tags_from_values(T, String), ListTags),
+    flatten(ListTags, Tags).
 
 social_tag_from_links(Tag, Links):-
-  member(L, Links),
-	tags:social_tag(SocialName, Regex),
-	re_matchsub(Regex, L, Dict, []),
-  User = Dict.user,
-%	Tag =.. [SocialName, User].
-	atomic_list_concat([SocialName, "/", User], Tag).
+    member(L, Links),
+    tags:social_tag(SocialName, Regex),
+    re_matchsub(Regex, L, Dict, []),
+    User = Dict.user,
+    %	Tag =.. [SocialName, User].
+    atomic_list_concat([SocialName, "/", User], Tag).
 
 social_tags_from_links(Tags, Links):-
-	findall(T, social_tag_from_links(T, Links), TagsList),
-	list_to_set(TagsList, Tags).
+    findall(T, social_tag_from_links(T, Links), TagsList),
+    list_to_set(TagsList, Tags).

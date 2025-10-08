@@ -6,6 +6,12 @@ ragno.pl is a light crawler written in (SWI) Prolog
 
 swipl pack install lsp_server
 
+## TODO
+
+Skip domains
+- [ ] starting with numbers
+- [ ] with end url with port != 443
+
 ## USAGE
 
 Start with one or more domains to be used as "seeds".

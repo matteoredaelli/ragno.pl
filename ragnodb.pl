@@ -29,7 +29,7 @@
 :- use_module(library(apply)).
 :- use_module(crawler).
 :- use_module(db).
-:- use_module(threadpool).
+%%:- use_module(threadpool).
 :- use_module(uri_ext).
 
 add_new_domain(Domain):-
@@ -47,13 +47,17 @@ add_new_domain_if_missing(Domain):-
         add_new_domain(Domain)).
 
 add_new_domains_if_missing(Domains):-
-    maplist(add_new_domain_if_missing, Domains).
+    config:skip_domains(RegexList),
+    uri_ext:exclude_domains(Domains, RegexList, FilteredDomains),
+    maplist(add_new_domain_if_missing, FilteredDomains).
 
 scan_add_new_domains:-
     db:enum(_K, Data),
     Domains = Data.domains,
     "done" == Data.ragno_status,
-    %    threadpool:submit_task(ragnodb:add_new_domains_if_missing(Domains)).
+    %    config:threadpool_size(S),
+%    (S > 0 -> 
+%        threadpool:submit_task(ragnopool, ragnodb:add_new_domains_if_missing(Domains)) ;
     add_new_domains_if_missing(Domains).
 
 full_scan_add_new_domains:-
@@ -63,16 +67,21 @@ scan_todo_domain_and_crawl:-
     db:enum(Domain, Data),
     "todo" == Data.ragno_status,
     %%format("Submitting domain ~q\n", [Domain]),
-    crawler:crawl_domain(Domain, _).
-%    threadpool:submit_task(crawler:crawl_domain(Domain, _)).
+%    crawler:crawl_domain(Domain, _).
+    config:threadpool_size(S),
+    (S > 0 ->
+         threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Domain, _)) ;
+     crawler:crawl_domain(Domain, _)).
 
 full_scan_todo_domains_and_crawl:-
-    findall(_, scan_todo_domain_and_crawl, _).
+    findall(_, scan_todo_domain_and_crawl, _),
+    sleep(10000).
 
 scan_domain_name:-
-    db:enum(Domain, _Data),
+    db:enum(Domain, Data),
     %    "error" \= Data.ragno_status,
-    writeln(Domain).
+    Status = Data.ragno_status,
+    format("~w ~q\n", [Domain, Status]).
 
 full_scan_domain_name:-
     findall(_, scan_domain_name, _).

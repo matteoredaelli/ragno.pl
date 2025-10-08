@@ -19,8 +19,11 @@
 */
 
 :- module(uri_ext, [
+              domain_to_reverse_list/2,
+              exclude_domains/3,
               uri_domain/2,
               uris_domains/2,
+              level_domain/2,
               level2_domain/2,
               is_http_uri/1,
               remove_www/2,
@@ -68,12 +71,19 @@ uri_without_fragment(Url1, Url2):-
     uri_components(Url1, uri_components(Schema, DomainPort, Path, Params, _Fragment)),
     uri_components(Url2, uri_components(Schema, DomainPort, Path, Params, _)).
 
+level_domain(Domain, N):-
+    remove_www(Domain, DomainWithOutDomain),
+    atom_string(DomainWithOutDomain, DomainString),
+    split_string(DomainString, ".", "", DomainList),
+    length(DomainList, N).
+
 /*
 level2_domain(+Domain1, -Domain2)
 
 convert a domain like 'www.redaelli.org' to 'redaelli.org'
 
 */
+
 level2_domain(Domain, Domain2):-
     atom_string(Domain, DomainString),
     split_string(DomainString, ".", "", DomainList),
@@ -99,3 +109,16 @@ www_without_numbers(FromUrl, ToUrl):-
 
 remove_www(FromUrl, ToUrl):-
     re_replace("^www\\d*\\.", "", FromUrl, ToUrl).
+
+
+% true if String matches any regex in the list
+matches_any(RegexList, String) :-
+    once( (member(Re, RegexList),
+           re_match(Re, String)) ).
+
+exclude_domains(FromList, RegexList, ToList) :-
+    exclude(matches_any(RegexList), FromList, ToList).
+
+domain_to_reverse_list(Input, Result) :-
+    split_string(Input, ".", "", Parts),
+    reverse(Parts, Result).

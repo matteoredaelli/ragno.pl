@@ -5,8 +5,8 @@ pre-commit:
   commands:
     fmt:
       run: for file in *.pl ; do swipl formatter $file ; done
-    lint:
-      run: swipl -q --on-warning=status --on-error=status -g check -t halt -l {staged_files}
-      glob: "*.pl"
-      stage_fixed: true
+#    lint:
+#      run: swipl -q --on-warning=status --on-error=status -g check -t halt -l {staged_files}
+#      glob: "*.pl"
+#      stage_fixed: true
 

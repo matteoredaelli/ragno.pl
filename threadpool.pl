@@ -1,167 +1,223 @@
-% Thread Pool Implementation in SWI-Prolog
-% This creates a pool of worker threads that execute goals from a message queue
-:- module(threadpool,
-          [ create_thread_pool/1,
-            pool_status/0,
-            shutdown_thread_pool/0,
-            submit_task/1
-          ]).
+:- module(thread_pool, [
+              start_pool/2,
+              stop_pool/1,
+              submit_task/2,
+              pool_status/1
+                       ]).
 
 :- use_module(library(thread)).
-:- use_module(library(debug)).
 
-% Global variables to store thread pool state
-:- dynamic thread_pool_queue/1.
-:- dynamic thread_pool_workers/1.
-:- dynamic thread_pool_size/1.
+% Dynamic predicates to track pool state
+:- dynamic pool_config/3.        % pool_config(PoolName, WorkerCount, TaskQueue)
+:- dynamic worker_thread/3.      % worker_thread(PoolName, ThreadId, WorkerNum)
 
-% Create a thread pool with N worker threads
-create_thread_pool(Size) :-
-    % Create message queue for tasks
+%! start_pool(+PoolName, +WorkerCount) is det.
+%  Initialize a thread pool with the specified number of workers.
+%  Each worker will automatically restart if it fails.
+start_pool(PoolName, WorkerCount) :-
+    % Create a message queue for tasks
     message_queue_create(TaskQueue),
-    assert(thread_pool_queue(TaskQueue)),
-    assert(thread_pool_size(Size)),
 
-    % Create worker threads
-    findall(WorkerId,
-            (between(1, Size, I),
-             atom_concat(worker_, I, WorkerId),
-             thread_create(worker_loop(TaskQueue), _, [alias(WorkerId), detached(true)])),
-            Workers),
-    assert(thread_pool_workers(Workers)),
+    % Store pool configuration
+    assertz(pool_config(PoolName, WorkerCount, TaskQueue)),
 
-    format('Thread pool created with ~w workers~n', [Size]),
-    format('Workers: ~w~n', [Workers]).
+    % Start worker threads
+    forall(
+        between(1, WorkerCount, N),
+        start_worker(PoolName, N, TaskQueue)
+    ),
 
-% Worker thread loop - continuously processes tasks from the queue
-worker_loop(TaskQueue) :-
-    thread_self(ThreadId),
-    format('[~w] Worker started~n', [ThreadId]),
-    worker_process_loop(TaskQueue, ThreadId).
+    format('Thread pool "~w" started with ~d workers~n', [PoolName, WorkerCount]).
 
-worker_process_loop(TaskQueue, ThreadId) :-
-    % Wait for a task from the queue
-    thread_get_message(TaskQueue, Task),
+%! start_worker(+PoolName, +WorkerNum, +TaskQueue) is det.
+%  Start a single worker thread that processes tasks from the queue.
+start_worker(PoolName, WorkerNum, TaskQueue) :-
+    atom_concat(PoolName, '_worker_', Prefix),
+    atom_concat(Prefix, WorkerNum, ThreadName),
 
-    % Process the task
+    thread_create(
+        worker_loop(PoolName, WorkerNum, TaskQueue),
+        ThreadId,
+        [alias(ThreadName), detached(false)]
+    ),
+
+    assertz(worker_thread(PoolName, ThreadId, WorkerNum)),
+    format('Worker ~w started (Thread ID: ~w)~n', [ThreadName, ThreadId]).
+
+%! worker_loop(+PoolName, +WorkerNum, +TaskQueue) is det.
+%  Main loop for worker threads. Continuously processes tasks from queue.
+%  Implements automatic restart on failure.
+worker_loop(PoolName, WorkerNum, TaskQueue) :-
+    catch(
+        worker_loop_safe(PoolName, WorkerNum, TaskQueue),
+        Error,
+        handle_worker_error(PoolName, WorkerNum, TaskQueue, Error)
+    ).
+
+%! worker_loop_safe(+PoolName, +WorkerNum, +TaskQueue) is det.
+%  Safe inner loop that processes tasks.
+worker_loop_safe(PoolName, WorkerNum, TaskQueue) :-
+    repeat,
+    thread_get_message(TaskQueue, Task, [timeout(1)]),
     (   Task = stop
-    ->  format('[~w] Worker stopping~n', [ThreadId])
-    ;   process_task(Task, ThreadId),
-        worker_process_loop(TaskQueue, ThreadId)
+    ->  format('Worker ~w-~d received stop signal~n', [PoolName, WorkerNum]),
+        !
+    ;   Task = task(Goal, TaskId)
+    ->  %format('Worker ~w-~d processing task ~w~n', [PoolName, WorkerNum, TaskId]),
+        execute_task(Goal, TaskId, PoolName, WorkerNum),
+        fail  % Continue loop
+    ;   fail  % Timeout, continue loop
     ).
 
-% Process individual tasks
-process_task(task(Goal, TaskId), WorkerId) :-
-    %%    format('[~w] Starting task ~w: ~q~n', [WorkerId, TaskId, Goal]),
-%%    get_time(StartTime),
-
-    % Execute the goal safely
-    (
-        catch(call(Goal), Error,
-              format('[~w] Task ~w failed with error: ~q~n', [WorkerId, TaskId, Error]))
-        % ->  Status = completed
-%    ;   Status = failed
+%! execute_task(+Goal, +TaskId, +PoolName, +WorkerNum) is det.
+%  Execute a task with error handling.
+execute_task(Goal, TaskId, PoolName, WorkerNum) :-
+    catch(
+        %        (   
+        call(Goal),
+        %            format('Worker ~w-~d completed task ~w successfully~n', 
+%                   [PoolName, WorkerNum, TaskId])
+%        ),
+        TaskError,
+        (   format('Worker ~w-~d: Task ~w failed with error: ~w~n',
+                   [PoolName, WorkerNum, TaskId, TaskError]),
+            format('Worker continues running...~n', [])
+        )
     ).
-%%   get_time(EndTime),
-%%   Duration is EndTime - StartTime,
-%%   format('[~w] Task ~w ~w in ~2f seconds~n', [WorkerId, TaskId, Status, Duration]).
 
-% Submit a task to the thread pool
-submit_task(Goal) :-
-    submit_task(Goal, _).
+%! handle_worker_error(+PoolName, +WorkerNum, +TaskQueue, +Error) is det.
+%  Handle worker thread errors and restart the worker.
+handle_worker_error(PoolName, WorkerNum, TaskQueue, Error) :-
+    format('ERROR: Worker ~w-~d crashed with error: ~w~n',
+           [PoolName, WorkerNum, Error]),
+    format('Restarting worker ~w-~d...~n', [PoolName, WorkerNum]),
 
-submit_task(Goal, TaskId) :-
-    thread_pool_queue(TaskQueue),
+    % Clean up old thread reference
+    thread_self(OldThreadId),
+    retractall(worker_thread(PoolName, OldThreadId, WorkerNum)),
+
+    % Restart the worker
+    sleep(0.1),  % Brief pause before restart
+    start_worker(PoolName, WorkerNum, TaskQueue).
+
+%! submit_task(+PoolName, +Goal) is det.
+%  Submit a task to the thread pool for execution.
+submit_task(PoolName, Goal) :-
+    pool_config(PoolName, _, TaskQueue),
     !,
-    gensym(task_, TaskId),
-    Task = task(Goal, TaskId),
-    thread_send_message(TaskQueue, Task).
-%    format('Submitted task ~w: ~q~n', [TaskId, Goal]).
+    get_time(Time),
+    TaskId = Time,
+    thread_send_message(TaskQueue, task(Goal, TaskId)),
+    format('Task ~w submitted to pool "~w"~n', [TaskId, PoolName]).
 
-submit_task(_, _) :-
-    format('Error: Thread pool not created. Call create_thread_pool/1 first.~n').
+submit_task(PoolName, _) :-
+    format('ERROR: Pool "~w" does not exist~n', [PoolName]),
+    fail.
 
-% Shutdown the thread pool
-shutdown_thread_pool :-
-    thread_pool_queue(TaskQueue),
-    thread_pool_workers(Workers),
-    thread_pool_size(Size),
+%! stop_pool(+PoolName) is det.
+%  Gracefully stop all workers in the pool and clean up resources.
+stop_pool(PoolName) :-
+    pool_config(PoolName, WorkerCount, TaskQueue),
     !,
+    format('Stopping pool "~w"...~n', [PoolName]),
 
-    % Send stop messages to all workers
-    forall(between(1, Size, _),
-           thread_send_message(TaskQueue, stop)),
+    % Send stop signals to all workers
+    forall(
+        between(1, WorkerCount, _),
+        thread_send_message(TaskQueue, stop)
+    ),
 
-    % Wait a moment for workers to finish
-    sleep(20),
+    % Wait for all workers to finish
+    findall(ThreadId, worker_thread(PoolName, ThreadId, _), ThreadIds),
+    forall(
+        member(ThreadId, ThreadIds),
+        (   catch(thread_join(ThreadId), _, true),
+            retractall(worker_thread(PoolName, ThreadId, _))
+        )
+    ),
 
-    % Clean up
+    % Clean up queue and config
     message_queue_destroy(TaskQueue),
-    retract(thread_pool_queue(TaskQueue)),
-    retract(thread_pool_workers(Workers)),
-    retract(thread_pool_size(Size)),
+    retractall(pool_config(PoolName, _, _)),
 
-    format('Thread pool shutdown complete~n').
+    format('Pool "~w" stopped~n', [PoolName]).
 
-shutdown_thread_pool :-
-    format('No thread pool to shutdown~n').
+stop_pool(PoolName) :-
+    format('Pool "~w" does not exist~n', [PoolName]).
 
-% Utility predicate for testing
-test_sleep_task(Seconds) :-
-    format('  [TASK] Sleeping for ~w seconds...~n', [Seconds]),
-    sleep(Seconds),
-    format('  [TASK] Woke up after ~w seconds!~n', [Seconds]).
+%! pool_status(+PoolName) is det.
+%  Display the current status of a thread pool.
 
-% Example usage and test cases
-demo :-
-    format('=== Thread Pool Demo ===~n'),
+pool_status(PoolName) :-
+    pool_config(PoolName, WorkerCount, TaskQueue),
+    !,
+    format('~n=== Pool Status: ~w ===~n', [PoolName]),
+    format('Worker count: ~d~n', [WorkerCount]),
+    format('Task queue: ~w~n', [TaskQueue]),
 
-    % Create a thread pool with 3 workers
-    create_thread_pool(3),
+    findall(ThreadId-WorkerNum, worker_thread(PoolName, ThreadId, WorkerNum), Workers),
+    length(Workers, WorkerLen),
+    format('Active workers: ~d~n', [WorkerLen]),
+    forall(
+        member(ThreadId-WorkerNum, Workers),
+        (   thread_property(ThreadId, status(Status)),
+            format('  Worker ~d (Thread ~w): ~w~n', [WorkerNum, ThreadId, Status])
+        )
+    ),
+    format('========================~n~n').
 
-    % Submit various tasks
-    submit_task(test_sleep_task(2)),
-    submit_task(test_sleep_task(1)),
-    submit_task(test_sleep_task(3)),
-    submit_task((format('  [TASK] Hello from custom task!~n'), sleep(1))),
-    submit_task(test_sleep_task(2)),
-    submit_task((writeln('  [TASK] Quick task'), sleep(0.5))),
+pool_status(PoolName) :-
+    format('Pool "~w" does not exist~n', [PoolName]).
 
-    % Let tasks run
-    format('~nWaiting for tasks to complete...~n'),
-    sleep(8),
+% ============================================================================
+% EXAMPLE USAGE
+% ============================================================================
 
-    % Shutdown
-    format('~nShutting down thread pool...~n'),
-    shutdown_thread_pool.
+% Example task that succeeds
+example_task(N) :-
+    format('Executing task with parameter: ~w~n', [N]),
+    sleep(0.5),
+    Result is N * 2,
+    format('Task result: ~w~n', [Result]).
 
-% Alternative demo with task monitoring
-demo_with_monitoring :-
-    format('=== Thread Pool Demo with Task IDs ===~n'),
-
-    create_thread_pool(2),
-
-    % Submit tasks and collect their IDs
-    findall(TaskId,
-            (member(Duration, [3, 1, 4, 2]),
-             submit_task(test_sleep_task(Duration), TaskId)),
-            TaskIds),
-
-    format('Submitted tasks: ~w~n', [TaskIds]),
-
-    % Wait and shutdown
-    sleep(10),
-    shutdown_thread_pool.
-
-% Helper to check thread pool status
-pool_status :-
-    (   thread_pool_queue(Queue)
-    ->  thread_pool_size(Size),
-        thread_pool_workers(Workers),
-        message_queue_property(Queue, size(QueueSize)),
-        format('Thread pool status:~n'),
-        format('  Queue: ~w (size: ~w)~n', [Queue, QueueSize]),
-        format('  Workers: ~w~n', [Workers]),
-        format('  Pool size: ~w~n', [Size])
-    ;   format('No active thread pool~n')
+% Example task that fails (to demonstrate auto-restart)
+failing_task(N) :-
+    format('Executing failing task: ~w~n', [N]),
+    (   N mod 3 =:= 0
+    ->  throw(error(intentional_failure, 'Task designed to fail'))
+    ;   format('Task ~w succeeded~n', [N])
     ).
+
+% Demo: Start pool, submit tasks, and stop
+demo :-
+    % Start a pool with 3 workers
+    start_pool(my_pool, 3),
+
+    % Submit some tasks
+    forall(
+        between(1, 10, N),
+        submit_task(my_pool, example_task(N))
+    ),
+
+    % Wait for tasks to complete
+    sleep(6),
+
+    % Check status
+    pool_status(my_pool),
+
+    % Stop the pool
+    stop_pool(my_pool).
+
+% Demo with failing tasks to show auto-restart
+demo_with_failures :-
+    start_pool(resilient_pool, 2),
+
+    % Submit tasks that will occasionally fail
+    forall(
+        between(1, 12, N),
+        submit_task(resilient_pool, failing_task(N))
+    ),
+
+    sleep(8),
+    pool_status(resilient_pool),
+    stop_pool(resilient_pool).

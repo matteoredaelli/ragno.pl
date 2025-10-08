@@ -19,33 +19,33 @@
 */
 
 :- module(tags, [
-	      social_tag/2,
-	      header_tags/2,
-	      key_tags/2,
-	      value_tags/2
-	  ]).
+              social_tag/2,
+              header_tags/2,
+              key_tags/2,
+              value_tags/2
+                ]).
 
 :- use_module(library(uri)).
 :- use_module(headers_ext).
 
-key_tags("x_amz_",     ['cloud/aws']).
-key_tags("x_amz_cf_",  ['cdn/cloudfront']).
-key_tags("x_azure",    ['cloud/azure']).
-key_tags("bigip",      ['bigip']).
-key_tags("akamai",     ['cdn/akamai']).
+key_tags("x_amz_", ['cloud/aws']).
+key_tags("x_amz_cf_", ['cdn/cloudfront']).
+key_tags("x_azure", ['cloud/azure']).
+key_tags("bigip", ['bigip']).
+key_tags("akamai", ['cdn/akamai']).
 key_tags("cloudfront", ['cdn/cloudfront']).
-key_tags("netlify",    ['cloud/netlify']).
-key_tags("x-edg",      ['cloud/edgio']).
-key_tags("aruba",      ['cloud/aruba']).
-key_tags("x-goog",     ['cloud/google']).
-key_tags("varnish",    ['varnish']).
-	
+key_tags("netlify", ['cloud/netlify']).
+key_tags("x-edg", ['cloud/edgio']).
+key_tags("aruba", ['cloud/aruba']).
+key_tags("x-goog", ['cloud/google']).
+key_tags("varnish", ['varnish']).
+
 
 header_tags(server('Netlify'), ['cloud/netlify']).
 header_tags(server(X), [Tag]):-
-  atomic_list_concat([server, "/", X], Tag).
+    atomic_list_concat([server, "/", X], Tag).
 header_tags('x-powered-by'(X), [Tag]):-
-  atomic_list_concat(['x-powered-by', "/", X], Tag).
+    atomic_list_concat(['x-powered-by', "/", X], Tag).
 
 value_tags("cloudflare", ['cdn/cloudflare']).
 value_tags("httpd", ['sw/apache']).

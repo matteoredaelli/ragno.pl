@@ -19,19 +19,19 @@
 */
 
 :- module(headers_ext, [
-	      headers_keys_values/3
-	  ]).
+              headers_keys_values/3
+                       ]).
 
 :-use_module(list_ext).
 
 add_key_value(Term, Dict, DictNew):-
-    Term =.. [K,V],
-    DictNew = Dict.put(K,V).
-    
+    Term =.. [K, V],
+    DictNew = Dict.put(K, V).
+
 headers_to_dict(Headers, Dict):-
-     foldl(add_key_value, Headers, headers{}, Dict).
+    foldl(add_key_value, Headers, headers{}, Dict).
 
 headers_keys_values([], [], []).
 headers_keys_values([H|Headers], [K|Keys], [V|Values]):-
-	H =.. [K,V],
-	headers_keys_values(Headers, Keys, Values).
+    H =.. [K, V],
+    headers_keys_values(Headers, Keys, Values).

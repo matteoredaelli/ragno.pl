@@ -19,20 +19,20 @@
 */
 
 :- module(list_ext, [
-		     append_to_lists/3,
-		     atomic_lists_concat/3,
-		     merge_lists/3,
-		     groupN/3,
-		     range/3,
-				 remove_list/3,
-				 remove_list_keys/3
-		    ]).
+              append_to_lists/3,
+              atomic_lists_concat/3,
+              merge_lists/3,
+              groupN/3,
+              range/3,
+              remove_list/3,
+              remove_list_keys/3
+                    ]).
 
 selectN(0, L, [], L).
-selectN(N, [X|L],[X|L1], L2) :-
-	N > 0,
-	N1 is N-1,
-	selectN(N1,L,L1, L2).
+selectN(N, [X|L], [X|L1], L2) :-
+    N > 0,
+    N1 is N-1,
+    selectN(N1, L, L1, L2).
 
 %%  works if list legth can be dividev by N without rest
 %%groupN([],_,[]).
@@ -41,40 +41,40 @@ selectN(N, [X|L],[X|L1], L2) :-
 %%	groupN(Rest,N,Gs).
 
 groupN(N, List, [List]):-
-	length(List, M),
-	M =< N, !.
+    length(List, M),
+    M =< N, !.
 groupN(N, List, [H|T]):-
-	append(H, T1, List),
-	length(H, N),
-	groupN(N, T1, T).
+    append(H, T1, List),
+    length(H, N),
+    groupN(N, T1, T).
 
 atomic_lists_concat([], _Sep, []).
-atomic_lists_concat([L1|List], Sep, [S|Strings] ):-
-	atomic_list_concat(L1, Sep, S),
-	atomic_lists_concat(List, Sep, Strings).
+atomic_lists_concat([L1|List], Sep, [S|Strings]):-
+    atomic_list_concat(L1, Sep, S),
+    atomic_lists_concat(List, Sep, Strings).
 
 list_join(List, Separator, String):-
-	atomic_list_concat(List, Separator, Atom),
-	atom_string(Atom, String).
+    atomic_list_concat(List, Separator, Atom),
+    atom_string(Atom, String).
 
 
 append_to_lists([], _L, []).
 append_to_lists([FirstList|Others], L, [NewFirstList|NewOthers]):-
-	append(L, FirstList, NewFirstList),
-	append_to_lists(Others, L, NewOthers).
+    append(L, FirstList, NewFirstList),
+    append_to_lists(Others, L, NewOthers).
 
-merge_lists([],[],[]).
-merge_lists([H1|T1], [H2|T2] ,[H1, H2|T]):-
-	merge_lists(T1, T2, T).
+merge_lists([], [], []).
+merge_lists([H1|T1], [H2|T2], [H1, H2|T]):-
+    merge_lists(T1, T2, T).
 
-range(X,X,[X]) :- !.
-range(X,Y,[X|Xs]) :-
+range(X, X, [X]) :- !.
+range(X, Y, [X|Xs]) :-
     X =< Y,
     Z is X+1,
-    range(Z,Y,Xs).
+    range(Z, Y, Xs).
 
 remove_list(List, ToRemove, Result) :-
     exclude({ToRemove}/[X]>>memberchk(X, ToRemove), List, Result).
 
 remove_list_keys(List, ToRemove, Result) :-
-	 exclude([X]>>(functor(X, F, _), member(F, ToRemove)), List, Result).
+    exclude([X]>>(functor(X, F, _), member(F, ToRemove)), List, Result).

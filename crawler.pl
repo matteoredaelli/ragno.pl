@@ -168,5 +168,8 @@ crawl_domain(Domain, DataOut):-
     ),
     db:put(Domain, DataOut).
 
-crawl_domains(Domains, Results):-
-    maplist(crawl_domain, Domains, Results).
+crawl_domains([], []).
+crawl_domains([Domain|Domains], [Result|Results]):-
+    threadpool:submit_task(ragnopool, crawler:crawl_domain(Domain, Result)),
+    crawl_domains(Domains, Results),
+    sleep(10000).

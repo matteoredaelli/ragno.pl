@@ -20,12 +20,24 @@
 
 :- module(config,
           [
+              threadpool_size/1,
               dbname/1,
               http_options/1,
-              removed_http_headers/1
+              removed_http_headers/1,
+              skip_domains/1
           ]).
 
+tld(com).
+tld(eu).
+tld(io).
+tld(it).
+tld(net).
+tld(rs).
+tld(org).
+
 dbname("data/ragnodb").
+
+threadpool_size(15).
 
 http_options( [redirect(true),
                timeout(8),
@@ -49,6 +61,7 @@ removed_http_headers([accept_ranges,
                       x_xss_protection
                      ]).
 
-exclude_domains([
-                    porn-"porn|sex|xxx|sesso"
-                ]).
+skip_domains([
+                 "porn|sex|xxx|sesso",
+                 "^\\d+\\."
+             ]).
