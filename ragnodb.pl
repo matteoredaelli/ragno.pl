@@ -23,7 +23,8 @@
           [
               full_scan_add_new_domains/0,
               dump/1,
-              full_scan_todo_domains_and_crawl/0
+              dump_json/1,
+              full_scan_todo_and_crawl/1
           ]).
 
 :- use_module(library(http/json)).
@@ -38,8 +39,8 @@ add_new_domain(Domain):-
     get_time(Timestamp),
     Data = domain{ragno_status:todo,
                   ragno_ts:Timestamp,
-                  domain:Domain,
-                  domains:[]},
+                  domain:Domain
+                  },
     db:put(domain, Domain, Data).
 
 add_new_domain_if_missing(Domain):-
@@ -53,36 +54,44 @@ add_new_domains_if_missing(Domains):-
     maplist(add_new_domain_if_missing, FilteredDomains).
 
 scan_add_new_domains:-
-    db:enum(domain, _K, Data),
-    Domains = Data.domains,
-    "done" == Data.ragno_status,
+    db:enum(domain, Domain, Data),
+    done == Data.ragno_status,
+    FinalDomain = Data.final_domain,
+    once(Domain == FinalDomain ;
     %    config:threadpool_size(S),
 %    (S > 0 -> 
 %        threadpool:submit_task(ragnopool, ragnodb:add_new_domains_if_missing(Domains)) ;
-    add_new_domains_if_missing(Domains).
+        add_new_domains_if_missing([FinalDomain])).
 
 full_scan_add_new_domains:-
     findall(_, scan_add_new_domains, _).
 
-scan_todo_domain_and_crawl:-
-    db:enum(domain, Domain, Data),
-    "todo" == Data.ragno_status,
+scan_todo_and_crawl(DBname):-
+    db:enum(DBname, Object, Data),
+    todo == Data.ragno_status,
     %%format("Submitting domain ~q\n", [Domain]),
 %    crawler:crawl_domain(Domain).
-    config:threadpool_size(S),
-    (S > 0 ->
-         threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Domain)) ;
-     crawler:crawl_domain(Domain)).
+    once(
+        (DBname == domain, 
+         threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Object))) ;
+        (DBname == url, 
+         threadpool:submit_task(ragnopool, crawler:crawler:crawl_url(Object, Data, _)))).
 
-full_scan_todo_domains_and_crawl:-
-    findall(_, scan_todo_domain_and_crawl, _),
+full_scan_todo_and_crawl(DBname):-
+    findall(_, scan_todo_and_crawl(DBname), _),
     sleep(10000).
+
+dump(DBname):-
+    findall(_,
+            (db:enum(DBname, _K, V), format("~q\n", [V])),
+            _).
 
 enum_json(DBname):-
     db:enum(DBname, _K, V),
     %    "error" \= Data.ragno_status,
+%    VwithK = V.put(_{domain: K}),
     atom_json_dict(Json, V, []),
     format("~w\n", [Json]).
 
-dump(DBname):-
+dump_json(DBname):-
     findall(_, enum_json(DBname), _).

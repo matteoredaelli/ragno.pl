@@ -2,7 +2,8 @@
               start_pool/2,
               stop_pool/1,
               submit_task/2,
-              pool_status/1
+              pool_status/1,
+              wait_pool_and_close/1
                        ]).
 
 :- use_module(library(thread)).
@@ -169,6 +170,14 @@ pool_status(PoolName) :-
 pool_status(PoolName) :-
     format('Pool "~w" does not exist~n', [PoolName]).
 
+wait_pool_and_close(PoolName) :-
+    sleep(1),
+    pool_config(PoolName, _WorkerCount, TaskQueue),
+    message_queue_property(TaskQueue, Property),
+    format('~n=== Queue count: ~w ===~n', Property),
+    member(size(Count), Property),
+    format('~n=== Queue count: ~w ===~n', Count),
+    Count > 0 -> wait_pool_and_close(PoolName) ; true.
 % ============================================================================
 % EXAMPLE USAGE
 % ============================================================================

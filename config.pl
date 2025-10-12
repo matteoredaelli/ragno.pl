@@ -34,7 +34,7 @@ tld(net).
 tld(rs).
 tld(org).
 
-threadpool_size(15).
+threadpool_size(1).
 
 http_options( [redirect(true),
                timeout(8),

@@ -31,22 +31,29 @@ main(Argv):-
 %    threadpool:shutdown_thread_pool.
 
 ragnocli([crawl|Argv]):-
-    config:threadpool_size(S),
-    once(S =< 0 ; threadpool:start_pool(ragnopool, S)),
     db:open(domain, [mode(read_write)]),
     db:open(url, [mode(read_write)]),
     crawler:crawl_domains(Argv).
+
+ragnocli([dump_json, DBname|_Argv]):-
+    db:open(DBname, [mode(read_only)]),
+    ragnodb:dump_json(DBname).
 
 ragnocli([dump, DBname|_Argv]):-
     db:open(DBname, [mode(read_only)]),
     ragnodb:dump(DBname).
 
-ragnocli([run|_Argv]):-
+ragnocli([find_domains|_Argv]):-
+    db:open(domain, [mode(read_write)]),
+    db:open(url, [mode(read_write)]),
+    ragnodb:full_scan_add_new_domains.
+
+ragnocli([run, ObjectType|_Argv]):-
     config:threadpool_size(S),
     once(S =< 0 ; threadpool:start_pool(ragnopool, S)),
     db:open(domain, [mode(read_write)]),
     db:open(url, [mode(read_write)]),
-    ragnodb:full_scan_todo_domains_and_crawl.
+    ragnodb:full_scan_todo_and_crawl(ObjectType).
 
 ragnocli([]):-
     writeln(["ragnocli crawl|dump|find_domains|run"]).
