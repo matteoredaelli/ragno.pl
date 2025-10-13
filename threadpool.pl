@@ -9,8 +9,8 @@
 :- use_module(library(thread)).
 
 % Dynamic predicates to track pool state
-:- dynamic pool_config/3.          % pool_config(PoolName, WorkerCount, TaskQueue)
-:- dynamic worker_thread/3.        % worker_thread(PoolName, ThreadId, WorkerNum)
+:- dynamic pool_config/3.           % pool_config(PoolName, WorkerCount, TaskQueue)
+:- dynamic worker_thread/3.         % worker_thread(PoolName, ThreadId, WorkerNum)
 
 %! start_pool(+PoolName, +WorkerCount) is det.
 %  Initialize a thread pool with the specified number of workers.

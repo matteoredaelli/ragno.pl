@@ -25,7 +25,9 @@
               crawl_domain/1,
               crawl_domains/1,
               crawl_domains/2,
-              crawl_url/3
+              crawl_url/3,
+              safe_crawl_urls/1,
+              safe_crawl_urls/2
           ]).
 
 :- use_module(library(http/http_open)).
@@ -39,6 +41,7 @@
 :- use_module(html_ext).
 :- use_module(config).
 :- use_module(db).
+:- use_module(headers_ext).
 :- use_module(tagger).
 :- use_module(uri_ext).
 
@@ -73,8 +76,7 @@ get_html_page(Url, FinalUrl, Headers, DOM):-
 
 crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
     get_html_page(Url, FinalUrl, AllHeaders, DOM),
-    removed_http_headers(HeadersToBeRemoved),
-    list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+    headers_ext:cleanup_headers(AllHeaders, Headers),
     html_ext:safe_extract_all_links(DOM, FinalUrl, Links),
     %% filter http or https uris
     include(uri_ext:is_http_uri, Links, HttpLinks).
@@ -84,6 +86,20 @@ crawl_html_page(Url, FinalUrl, Headers, HttpLinks):-
 %% 	  Err,
 %% 	  (FinalUrl=Url, Headers=[], HttpLinks=[])).
 
+
+safe_crawl_url(Url, DataIn, DataOut):-
+    catch(crawl_url(Url, DataIn, DataOut),
+          ExTerm,
+        (
+            format("Exception: ~q\n", [ExTerm]),
+            term_to_atom(ExTerm, ExString),
+            put_dict(url{
+                       ragno_status:error,
+                       error_message:ExString},
+                     DataIn, DataOut),
+            db:put(url, Url, DataOut)
+        )
+    ).
 
 crawl_url(Url, DataIn, DataOut):-
     format("Crawling url ~q\n", [Url]),
@@ -102,14 +118,12 @@ crawl_url(Url, DataIn, DataOut):-
                  headers:Headers,
                  internalLinks:SameDomainLinks,
                  externalLinks:ExternalLinks},
-             DataIn, 
+             DataIn,
              Data03),
     db:put(url, Url, Data03),
-    tagger:tags_from_headers(Headers, Tags),
     tagger:social_tags_from_links(SocialTags, ExternalLinks),
     put_dict(url{ragno_status: tags,
-                    tags:Tags,
-                    social_tags:SocialTags},
+                 social_tags:SocialTags},
              Data03, Data04),
     db:put(url, Url, Data04),
     once(
@@ -122,9 +136,9 @@ crawl_url(Url, DataIn, DataOut):-
         Description = ""),
     once(xpath(DOM, //meta(@property='og:type', @content=OgType), _) ; OgType = ""),
     put_dict(url{ragno_status: done,
-                    html_title:Title,
-                    html_description:Description,
-                    og_type:OgType},
+                 html_title:Title,
+                 html_description:Description,
+                 og_type:OgType},
              Data04, DataOut),
     db:put(url, Url, DataOut).
 
@@ -134,8 +148,7 @@ crawl_domain(Domain):-
     catch(
         (
             get_http_page_info(Url, FinalUrl, AllHeaders),
-            removed_http_headers(HeadersToBeRemoved),
-            list_ext:remove_list_keys(AllHeaders, HeadersToBeRemoved, Headers),
+            headers_ext:cleanup_headers(AllHeaders, Headers),
             uri_ext:uri_domain(FinalUrl, FinalDomain),
             get_time(Timestamp),
             db:put(domain, Domain, domain{
@@ -144,11 +157,13 @@ crawl_domain(Domain):-
                        ragno_ts:Timestamp,
                        homepage:FinalUrl,
                        final_domain:FinalDomain}),
+            tagger:tags_from_headers(Headers, Tags),
             db:put(url, FinalUrl, url{
                        url: Url,
                        ragno_status:todo,
                        ragno_ts:Timestamp,
                        domain:FinalDomain,
+                       tags:Tags,
                        headers:Headers})
         ),
         ExTerm,
@@ -172,5 +187,16 @@ crawl_domains(Domains, PoolName):-
     forall(
         member(Domain, Domains),
         threadpool:submit_task(PoolName, crawler:crawl_domain(Domain))
+    ),
+    sleep(36000).
+safe_crawl_urls(Urls):-
+    forall(
+        member(Url, Urls),
+        crawler:safe_crawl_url(Url)
+    ).
+safe_crawl_urls(Urls, PoolName):-
+    forall(
+        member(Url, Urls),
+        threadpool:submit_task(PoolName, crawler:safe_crawl_urls(Url))
     ),
     sleep(36000).

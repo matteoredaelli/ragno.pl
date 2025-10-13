@@ -21,7 +21,8 @@
 
 :- module(ragnodb,
           [
-              full_scan_add_new_domains/0,
+              full_scan_domain_for_new_domains/0,
+              full_scan_url_for_new_domains/0,
               dump/1,
               dump_json/1,
               full_scan_todo_and_crawl/1
@@ -40,7 +41,7 @@ add_new_domain(Domain):-
     Data = domain{ragno_status:todo,
                   ragno_ts:Timestamp,
                   domain:Domain
-                  },
+    },
     db:put(domain, Domain, Data).
 
 add_new_domain_if_missing(Domain):-
@@ -53,18 +54,27 @@ add_new_domains_if_missing(Domains):-
     uri_ext:exclude_domains(Domains, RegexList, FilteredDomains),
     maplist(add_new_domain_if_missing, FilteredDomains).
 
-scan_add_new_domains:-
+scan_domain_for_new_domains:-
     db:enum(domain, Domain, Data),
     done == Data.ragno_status,
     FinalDomain = Data.final_domain,
     once(Domain == FinalDomain ;
-    %    config:threadpool_size(S),
+         %    config:threadpool_size(S),
 %    (S > 0 -> 
 %        threadpool:submit_task(ragnopool, ragnodb:add_new_domains_if_missing(Domains)) ;
-        add_new_domains_if_missing([FinalDomain])).
+         add_new_domains_if_missing([FinalDomain])).
 
-full_scan_add_new_domains:-
-    findall(_, scan_add_new_domains, _).
+full_scan_domain_for_new_domains:-
+    findall(_, scan_domain_for_new_domains, _).
+
+scan_url_for_new_domains:-
+    db:enum(url, _, Data),
+    done == Data.ragno_status,
+    Domains = Data.domains,
+    add_new_domains_if_missing(Domains).
+
+full_scan_url_for_new_domains:-
+    findall(_, scan_url_for_new_domains, _).
 
 scan_todo_and_crawl(DBname):-
     db:enum(DBname, Object, Data),
@@ -72,13 +82,14 @@ scan_todo_and_crawl(DBname):-
     %%format("Submitting domain ~q\n", [Domain]),
 %    crawler:crawl_domain(Domain).
     once(
-        (DBname == domain, 
+        (DBname == domain,
          threadpool:submit_task(ragnopool, crawler:crawler:crawl_domain(Object))) ;
-        (DBname == url, 
+        (DBname == url,
          threadpool:submit_task(ragnopool, crawler:crawler:crawl_url(Object, Data, _)))).
 
 full_scan_todo_and_crawl(DBname):-
     findall(_, scan_todo_and_crawl(DBname), _),
+    threadpool:pool_status(ragnopool),
     sleep(10000).
 
 dump(DBname):-

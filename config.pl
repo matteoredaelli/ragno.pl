@@ -34,7 +34,7 @@ tld(net).
 tld(rs).
 tld(org).
 
-threadpool_size(1).
+threadpool_size(10).
 
 http_options( [redirect(true),
                timeout(8),
@@ -42,21 +42,24 @@ http_options( [redirect(true),
                cert_verify_hook(cert_accept_any),
                user_agent("Ragno.pl/0.1")]).
 
-removed_http_headers([accept_ranges,
-                      alt_svc,
-                      cache_control,
-                      content_security_policy,
-                      etag,
-                      expires,
-                      reporting_endpoints,
-                      strict_transport_security,
-                      set_cookie,
-                      x_cache,
-                      x_cache_hits,
-                      x_connection_hash,
-                      x_timer,
-                      x_xss_protection
-                     ]).
+removed_http_headers([
+  accept_ranges,
+  access_control_allow_origin,
+  access_control_expose_headers,
+  alt_svc,
+  cache_control,
+  content_security_policy,
+  etag,
+  expires,
+  reporting_endpoints,
+  set_cookie,
+  strict_transport_security,
+  x_cache,
+  x_cache_hits,
+  x_connection_hash,
+  x_timer,
+  x_xss_protection
+]).
 
 skip_domains([
                  "porn|sex|xxx|sesso",

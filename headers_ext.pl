@@ -19,9 +19,11 @@
 */
 
 :- module(headers_ext, [
+              cleanup_headers/2,
               headers_keys_values/3
                        ]).
 
+:-use_module(config).
 :-use_module(list_ext).
 
 add_key_value(Term, Dict, DictNew):-
@@ -35,3 +37,7 @@ headers_keys_values([], [], []).
 headers_keys_values([H|Headers], [K|Keys], [V|Values]):-
     H =.. [K, V],
     headers_keys_values(Headers, Keys, Values).
+
+cleanup_headers(From, To):-
+    config:removed_http_headers(HeadersToBeRemoved),
+    list_ext:remove_list_keys(From, HeadersToBeRemoved, To).
