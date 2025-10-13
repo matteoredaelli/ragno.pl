@@ -97,7 +97,7 @@ safe_crawl_url(Url, DataIn, DataOut):-
                        ragno_status:error,
                        error_message:ExString},
                      DataIn, DataOut),
-            db:put(url, Url, DataOut)
+            db:put(urls, Url, DataOut)
         )
     ).
 
@@ -120,12 +120,12 @@ crawl_url(Url, DataIn, DataOut):-
                  externalLinks:ExternalLinks},
              DataIn,
              Data03),
-    db:put(url, Url, Data03),
+    db:put(urls, Url, Data03),
     tagger:social_tags_from_links(SocialTags, ExternalLinks),
     put_dict(url{ragno_status: tags,
                  social_tags:SocialTags},
              Data03, Data04),
-    db:put(url, Url, Data04),
+    db:put(urls, Url, Data04),
     once(
         html_ext:safe_extract_text(DOM, //head/title(text), Title) ;
         xpath(DOM, //meta(@name=title, @content=Title), _) ;
@@ -140,37 +140,41 @@ crawl_url(Url, DataIn, DataOut):-
                  html_description:Description,
                  og_type:OgType},
              Data04, DataOut),
-    db:put(url, Url, DataOut).
+    db:put(urls, Url, DataOut).
 
 crawl_domain(Domain):-
     format("Crawling domain ~q\n", [Domain]),
     uri_components(Url, uri_components('https', Domain, "/", _Params, _Frag)),
+    get_http_page_info(Url, FinalUrl, AllHeaders),
+    headers_ext:cleanup_headers(AllHeaders, Headers),
+    uri_ext:uri_domain(FinalUrl, FinalDomain),
+    get_time(Timestamp),
+    tagger:tags_from_headers(Headers, Tags),
+    db:put(domains, Domain, domain{
+            domain: Domain,
+            ragno_status: done,
+            ragno_ts:Timestamp,
+            homepage:FinalUrl,
+            tags:Tags,
+            final_domain:FinalDomain}),
+    once( Domain \== FinalDomain ;
+        db:put(urls, FinalUrl, url{
+            url: Url,
+            ragno_status:todo,
+            ragno_ts:Timestamp,
+            domain:FinalDomain,
+            tags:Tags,
+            headers:Headers})).
+
+safe_crawl_domain(Domain):-
     catch(
-        (
-            get_http_page_info(Url, FinalUrl, AllHeaders),
-            headers_ext:cleanup_headers(AllHeaders, Headers),
-            uri_ext:uri_domain(FinalUrl, FinalDomain),
-            get_time(Timestamp),
-            db:put(domain, Domain, domain{
-                       domain: Domain,
-                       ragno_status: done,
-                       ragno_ts:Timestamp,
-                       homepage:FinalUrl,
-                       final_domain:FinalDomain}),
-            tagger:tags_from_headers(Headers, Tags),
-            db:put(url, FinalUrl, url{
-                       url: Url,
-                       ragno_status:todo,
-                       ragno_ts:Timestamp,
-                       domain:FinalDomain,
-                       tags:Tags,
-                       headers:Headers})
-        ),
+        safe_crawl_domain(Domain),
         ExTerm,
         (
             format("Exception: ~q\n", [ExTerm]),
             term_to_atom(ExTerm, ExString),
-            db:put(domain, Domain,
+            get_time(Timestamp),
+            db:put(domains, Domain,
                    domain{
                        domain:Domain,
                        ragno_status:error,

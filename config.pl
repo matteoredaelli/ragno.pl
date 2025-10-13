@@ -31,7 +31,6 @@ tld(eu).
 tld(io).
 tld(it).
 tld(net).
-tld(rs).
 tld(org).
 
 threadpool_size(10).
