@@ -168,7 +168,7 @@ crawl_domain(Domain):-
                tags:Tags,
                final_domain:FinalDomain}),
     once(db:get(urls, FinalUrl, _) ;
-          crawler:safe_crawl_url(FinalUrl)).
+         crawler:safe_crawl_url(FinalUrl)).
 %          db:put(urls, FinalUrl, url{
 %                     url: Url,
 %                     ragno_status:todo,
@@ -176,7 +176,7 @@ crawl_domain(Domain):-
 %                     domain:FinalDomain,
 %                     tags:Tags,
 %                     headers:Headers})).
-            
+
 safe_crawl_domain(Domain):-
     catch(
         crawl_domain(Domain),
@@ -208,7 +208,11 @@ crawl_domains(Domains, PoolName):-
 crawl_new_domain(Domain):-
     once(
         db:get(domains, Domain, _Data) ;
-        threadpool:submit_task(ragnopool, crawler:safe_crawl_domain(Domain))).
+        (db:put(domains, 
+               Domain,
+               domain{domain:Domain,
+                      ragno_status:todo}),
+        threadpool:submit_task(ragnopool, crawler:safe_crawl_domain(Domain)))).
 
 crawl_new_domains(Domains):-
     config:skip_domains(RegexList),

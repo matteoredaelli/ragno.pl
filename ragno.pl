@@ -79,4 +79,3 @@ ragnocli_pool([run]):-
 
 ragnocli_pool([run, ObjectType, todo]):-
     ragnodb:full_scan_todo_and_crawl(ObjectType).
-

@@ -37,9 +37,9 @@
 
 scan_domains_and_crawl_new_domains:-
     db:enum(domains, Domain, Data),
-    ((done == Data.ragno_status , Domain \== Data.final_domain) ->
+    ((done == Data.ragno_status, Domain \== Data.final_domain) ->
          crawler:crawl_new_domains([Data.final_domain]) ;
-        true).
+     true).
 
 full_scan_domains_and_crawl_new_domains:-
     findall(_, scan_domains_and_crawl_new_domains, _).
