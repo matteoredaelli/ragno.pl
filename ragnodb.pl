@@ -21,8 +21,8 @@
 
 :- module(ragnodb,
           [
-              full_scan_domain_for_new_domains/0,
-              full_scan_url_for_new_domains/0,
+              full_scan_domains_and_crawl_new_domains/0,
+              full_scan_urls_and_crawl_new_domains/0,
               dump/1,
               dump_json/1,
               full_scan_todo_and_crawl/1
@@ -35,46 +35,23 @@
 %%:- use_module(threadpool).
 :- use_module(uri_ext).
 
-add_new_domain(Domain):-
-    writeln(["Adding domain", Domain]),
-    get_time(Timestamp),
-    Data = domain{ragno_status:todo,
-                  ragno_ts:Timestamp,
-                  domain:Domain
-    },
-    db:put(domains, Domain, Data).
-
-add_new_domain_if_missing(Domain):-
-    once(
-        db:get(domains, Domain, _Data) ;
-        add_new_domain(Domain)).
-
-add_new_domains_if_missing(Domains):-
-    config:skip_domains(RegexList),
-    uri_ext:exclude_domains(Domains, RegexList, FilteredDomains),
-    maplist(add_new_domain_if_missing, FilteredDomains).
-
-scan_domain_for_new_domains:-
+scan_domains_and_crawl_new_domains:-
     db:enum(domains, Domain, Data),
-    done == Data.ragno_status,
-    FinalDomain = Data.final_domain,
-    once(Domain == FinalDomain ;
-         %    config:threadpool_size(S),
-%    (S > 0 -> 
-%        threadpool:submit_task(ragnopool, ragnodb:add_new_domains_if_missing(Domains)) ;
-         add_new_domains_if_missing([FinalDomain])).
+    ((done == Data.ragno_status , Domain \== Data.final_domain) ->
+         crawler:crawl_new_domains([Data.final_domain]) ;
+        true).
 
-full_scan_domain_for_new_domains:-
-    findall(_, scan_domain_for_new_domains, _).
+full_scan_domains_and_crawl_new_domains:-
+    findall(_, scan_domains_and_crawl_new_domains, _).
 
-scan_url_for_new_domains:-
+scan_urls_and_crawl_new_domains:-
     db:enum(urls, _, Data),
     done == Data.ragno_status,
     Domains = Data.domains,
-    add_new_domains_if_missing(Domains).
+    crawler:crawl_new_domains(Domains).
 
-full_scan_url_for_new_domains:-
-    findall(_, scan_url_for_new_domains, _).
+full_scan_urls_and_crawl_new_domains:-
+    findall(_, scan_urls_and_crawl_new_domains, _).
 
 scan_todo_and_crawl(DBname):-
     db:enum(DBname, Object, Data),
@@ -88,9 +65,8 @@ scan_todo_and_crawl(DBname):-
          threadpool:submit_task(ragnopool, crawler:crawler:crawl_url(Object, Data, _)))).
 
 full_scan_todo_and_crawl(DBname):-
-    findall(_, scan_todo_and_crawl(DBname), _),
-    threadpool:pool_status(ragnopool),
-    sleep(10000).
+    findall(_, scan_todo_and_crawl(DBname), _).
+%%    threadpool:pool_status(ragnopool).
 
 dump(DBname):-
     findall(_,

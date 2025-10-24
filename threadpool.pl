@@ -9,8 +9,8 @@
 :- use_module(library(thread)).
 
 % Dynamic predicates to track pool state
-:- dynamic pool_config/3.           % pool_config(PoolName, WorkerCount, TaskQueue)
-:- dynamic worker_thread/3.         % worker_thread(PoolName, ThreadId, WorkerNum)
+:- dynamic pool_config/3.            % pool_config(PoolName, WorkerCount, TaskQueue)
+:- dynamic worker_thread/3.          % worker_thread(PoolName, ThreadId, WorkerNum)
 
 %! start_pool(+PoolName, +WorkerCount) is det.
 %  Initialize a thread pool with the specified number of workers.
@@ -108,8 +108,8 @@ submit_task(PoolName, Goal) :-
     !,
     get_time(Time),
     TaskId = Time,
-    thread_send_message(TaskQueue, task(Goal, TaskId)),
-    format('Task ~w submitted to pool "~w"~n', [TaskId, PoolName]).
+    thread_send_message(TaskQueue, task(Goal, TaskId)).
+%format('Task ~w submitted to pool "~w"~n', [TaskId, PoolName]).
 
 submit_task(PoolName, _) :-
     format('ERROR: Pool "~w" does not exist~n', [PoolName]),
